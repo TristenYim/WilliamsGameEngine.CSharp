@@ -18,6 +18,11 @@ namespace GameEngine
             _gameObjects.Add(gameObject);
         }
 
+        // TODO: Add a completely quad tree for SpriteGameObjects
+        //       In its current state, handleCollisions is O(n), which is not ideal, especially if there are many objects that check for collisions
+        //       Storing a reference to each SpriteGameObject in a quad tree will make handleCollisions O(N^2), with the price of having to keep the
+        //       tree sorted
+        
         // Called by the Game instance once per frame.
         public void Update(Time time)
         {
