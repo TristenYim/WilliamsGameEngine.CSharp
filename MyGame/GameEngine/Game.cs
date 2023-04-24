@@ -117,8 +117,9 @@ namespace GameEngine
             else
                 _nextScene = scene;
         }
-
+        
         // Begins the main game loop with the initial scene.
+        // TODO: Add a boolean which displays the time since the last loop and another which displays the average lps (loops per second), for debugging purposes
         public static void Run()
         {
             Clock clock = new Clock();
