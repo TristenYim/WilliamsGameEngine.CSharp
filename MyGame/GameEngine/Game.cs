@@ -13,6 +13,12 @@ namespace GameEngine
         // The number of frames that will be drawn to the screen in one second.
         private const int FramesPerSecond = 60;
 
+        // Set to true if you want the game to display the lps.
+        private const bool ShowLPS = true;
+        public static bool LPSShowing {
+            get { return ShowLPS; }
+        }
+
         // We keep a current and next scene so the scene can be changed mid-frame.
         private static Scene _currentScene;
         private static Scene _nextScene;
@@ -113,9 +119,16 @@ namespace GameEngine
             // If we don't have a current scene, set it.
             // Otherwise, note the next scene.
             if (_currentScene == null)
+            {
                 _currentScene = scene;
+
+                // If we set ShowLPS to true, add an LPS Object to the new scene.
+                if (ShowLPS) { _currentScene.AddGameObject(new LPSDisplay()); }
+            }
             else
+            {
                 _nextScene = scene;
+            }
         }
         
         // Begins the main game loop with the initial scene.
