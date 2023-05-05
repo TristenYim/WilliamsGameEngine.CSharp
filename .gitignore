@@ -4,6 +4,11 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # User-specific files
+*Meteor.cs
+*MeteorSpawner.cs
+*Laser.cs
+*Ship.cs
+*GameScene.cs
 *.md
 *.pdf
 *.sln

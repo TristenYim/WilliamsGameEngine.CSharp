@@ -11,12 +11,13 @@ namespace GameEngine
     static class Game
     {
         // The number of frames that will be drawn to the screen in one second.
-        private const int FramesPerSecond = 60;
+        private const int FramesPerSecond = 2147483647;
+        //private const int FramesPerSecond = 60;
 
-        // Set to true if you want the game to display the lps.
-        private const bool ShowLPS = true;
-        public static bool LPSShowing {
-            get { return ShowLPS; }
+        // Set to true if you want the game to display the fps.
+        private const bool showFPS = true;
+        public static bool FPSShowing {
+            get { return showFPS; }
         }
 
         // We keep a current and next scene so the scene can be changed mid-frame.
@@ -122,8 +123,8 @@ namespace GameEngine
             {
                 _currentScene = scene;
 
-                // If we set ShowLPS to true, add an LPS Object to the new scene.
-                if (ShowLPS) { _currentScene.AddGameObject(new LPSDisplay()); }
+                // If we set showFPS to true, add an fps Object to the new scene.
+                if (showFPS) { _currentScene.AddGameObject(new FPSDisplay()); }
             }
             else
             {
@@ -132,7 +133,6 @@ namespace GameEngine
         }
         
         // Begins the main game loop with the initial scene.
-        // TODO: Add a boolean which displays the time since the last loop and another which displays the average lps (loops per second), for debugging purposes
         public static void Run()
         {
             Clock clock = new Clock();
