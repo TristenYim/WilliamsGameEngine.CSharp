@@ -33,7 +33,8 @@ namespace GameEngine
             _totalFrames++;
             decimal fps = (decimal)_totalFrames / (decimal)_timer.Time * 1000;
             Text.DisplayedString = "FPS: " + decimal.Round(fps, 1);
-            if (_timer.surpassedTarget()) {
+            if (_timer.surpassedTarget())
+            {
                 _timer.reset();
                 _totalFrames = 0;
             }

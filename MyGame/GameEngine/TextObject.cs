@@ -9,13 +9,15 @@ namespace GameEngine
 
         // The text we draw on screen.
         private Text _text;
-        public Text Text {
-            get { return _text; }
-            set { _text = value; }
+        public Text Text
+        {
+            get => _text;
+            set => _text = value;
         }
 
         // Constructs the text with none of the text properties (DisplayedString, font, position) set.
-        public TextObject() {
+        public TextObject()
+        {
             _text = new Text();
 
             // This tag can be used to easily tell if this is a text object
@@ -38,8 +40,6 @@ namespace GameEngine
             Game.RenderWindow.Draw(_text);
         }
 
-        public override void Update(Time elapsed) 
-        {
-        }
+        public override void Update(Time elapsed) {}
     }
 }

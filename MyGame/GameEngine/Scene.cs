@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using GameEngine;
 using SFML.Graphics;
 using SFML.System;
 
@@ -11,11 +12,16 @@ namespace GameEngine
         // This holds our game objects.
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
 
+        private  CollisionTreeNode _collidableObjects = new CollisionTreeNode(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
+
         // Puts a GameObject into the scene.
         public void AddGameObject(GameObject gameObject)
         {
             // This adds the game object onto the back (the end) of the list of game objects.
             _gameObjects.Add(gameObject);
+            if (gameObject.HasTag("collidable")) {
+                _collidableObjects.insert((CollidableObject)gameObject);
+            }
         }
 
         // TODO: Add a completely quad tree for SpriteGameObjects
@@ -38,6 +44,8 @@ namespace GameEngine
             UpdateGameObjects(time);
             RemoveDeadGameObjects();
             DrawGameObjects();
+            _collidableObjects.recursiveDraw();
+            //_collidableObjects.split();
 
             // Draw the window as updated by the game objects.
             Game.RenderWindow.Display();
@@ -76,6 +84,7 @@ namespace GameEngine
                     }
                 }
             }
+            //_collidableObjects.handleCollisions();
         }
 
         // This function calls update on each of our game objects.
