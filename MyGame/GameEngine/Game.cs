@@ -20,6 +20,11 @@ namespace GameEngine
             get { return showFPS; }
         }
 
+        public static Color DebugColor
+        {
+            get => Color.Green;
+        }
+
         // We keep a current and next scene so the scene can be changed mid-frame.
         private static Scene _currentScene;
         private static Scene _nextScene;

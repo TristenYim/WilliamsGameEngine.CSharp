@@ -6,7 +6,7 @@ namespace GameEngine
     // This class represents any object which displays text.
     class TextObject : GameObject
     {
-
+        
         // The text we draw on screen.
         private Text _text;
         public Text Text

@@ -17,7 +17,7 @@ namespace GameEngine
         public FPSDisplay()
         {
             base.Text = new SFML.Graphics.Text("", Game.GetFont("Resources/Courneuf-Regular.ttf"), 16);
-            Text.Color = new Color(0, 255, 0);
+            Text.Color = Game.DebugColor;
             Text.Position = new Vector2f(10, 10);
 
             // Set to 1 to avoid divide by 0 error.

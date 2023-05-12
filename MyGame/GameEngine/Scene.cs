@@ -12,15 +12,21 @@ namespace GameEngine
         // This holds our game objects.
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
 
-        private  CollisionTreeNode _collidableObjects = new CollisionTreeNode(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
+        private PositionalTree _positionalObjects = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
+
+        public PositionalTree PositionalTree
+        {
+            get => _positionalObjects;
+        }
 
         // Puts a GameObject into the scene.
         public void AddGameObject(GameObject gameObject)
         {
             // This adds the game object onto the back (the end) of the list of game objects.
             _gameObjects.Add(gameObject);
-            if (gameObject.HasTag("collidable")) {
-                _collidableObjects.insert((CollidableObject)gameObject);
+            if (gameObject is Positional)
+            {
+                _positionalObjects.insert(((Positional)gameObject));
             }
         }
 
@@ -44,8 +50,7 @@ namespace GameEngine
             UpdateGameObjects(time);
             RemoveDeadGameObjects();
             DrawGameObjects();
-            _collidableObjects.recursiveDraw();
-            //_collidableObjects.split();
+            _positionalObjects.RecursiveDraw();
 
             // Draw the window as updated by the game objects.
             Game.RenderWindow.Display();
@@ -106,13 +111,28 @@ namespace GameEngine
             // It's "anonymous" because it doesn't have a name. We've declared a variable
             // named "isDead", and that variable can be used to call the function, but the
             // function itself is nameless.
-            Predicate<GameObject> isDead = gameObject => gameObject.IsDead();
+            //Predicate<GameObject> isDead = gameObject => gameObject.IsDead();
 
             // Here we use the lambda declared above by passing it to the standard RemoveAll
             // method on List<T>, which calls our lambda once for each element in
             // gameObjects. If our lambda returns true, that game object ends up being
             // removed from our list.
-            _gameObjects.RemoveAll(isDead);
+            //_gameObjects.RemoveAll(isDead);
+            for (int i = _gameObjects.Count - 1; i > 0; i--)
+            {
+                GameObject gameObject = _gameObjects[i];
+                if (gameObject.IsDead())
+                {
+                    if (gameObject is Positional)
+                    {
+                        if (!_positionalObjects.delete(((Positional)gameObject)))
+                        {
+                            Console.WriteLine("An error occured while deleting.");
+                        }
+                    }
+                    _gameObjects.RemoveAt(i);
+                }
+            }
         }
     }
 }

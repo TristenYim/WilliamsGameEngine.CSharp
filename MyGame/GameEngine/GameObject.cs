@@ -5,7 +5,7 @@ using SFML.System;
 namespace GameEngine
 {
     // This class represents every object in your game, such as the player, enemies, and so on.
-    abstract class GameObject
+    abstract class GameObject : Renderable
     {
         // TODO: Add an internal constant which stores its index in _gameObjects in Scene
         //       This would save the engine from checking if an object is dead on update, since removing an object when you know its index is easy
@@ -47,6 +47,11 @@ namespace GameEngine
         // TODO: Remove Draw() and add it to a separate object called SpriteGameObject
         public virtual void Draw()
         {
+        }
+
+        public virtual FloatRect RenderBounds
+        {
+            get;
         }
 
         // This flag indicates whether this game object should be checked for collisions.
