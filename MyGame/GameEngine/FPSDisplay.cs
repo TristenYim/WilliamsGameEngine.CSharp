@@ -13,11 +13,14 @@ namespace GameEngine
         // The total number of game frames since this object was constructed or reset.
         private int _totalFrames;
 
+        // The color of the dipslayed fps.
+        private static Color FPSColor = Color.Yellow;
+
         // Constructs the text with a built-in font, font size, color, at a built-in position.
         public FPSDisplay()
         {
             base.Text = new SFML.Graphics.Text("", Game.GetFont("Resources/Courneuf-Regular.ttf"), 16);
-            Text.Color = Game.DebugColor;
+            Text.Color = FPSColor;
             Text.Position = new Vector2f(10, 10);
 
             // Set to 1 to avoid divide by 0 error.

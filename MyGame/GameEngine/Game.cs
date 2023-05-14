@@ -15,14 +15,9 @@ namespace GameEngine
         //private const int FramesPerSecond = 60;
 
         // Set to true if you want the game to display the fps.
-        private const bool showFPS = true;
+        private const bool ShowFPS = true;
         public static bool FPSShowing {
-            get { return showFPS; }
-        }
-
-        public static Color DebugColor
-        {
-            get => Color.Green;
+            get { return ShowFPS; }
         }
 
         // We keep a current and next scene so the scene can be changed mid-frame.
@@ -129,7 +124,7 @@ namespace GameEngine
                 _currentScene = scene;
 
                 // If we set showFPS to true, add an fps Object to the new scene.
-                if (showFPS) { _currentScene.AddGameObject(new FPSDisplay()); }
+                if (ShowFPS) { _currentScene.AddGameObject(new FPSDisplay()); }
             }
             else
             {

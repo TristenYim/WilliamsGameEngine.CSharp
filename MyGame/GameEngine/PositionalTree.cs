@@ -14,12 +14,6 @@ namespace GameEngine
 
         // Represents all positional objects that can be fully contained in a child node.
         private List<Positional> _splittableObjects = new List<Positional>();
-        
-        // True if this is a leaf (is at the base of the tree).
-        private bool _isLeaf;
-
-        // True if this isLeaf and is empty.
-        private bool _isEmptyLeaf;
 
         // The children are numbered based on the standard mathematical quadrant system.
         private PositionalTree _child1 = null;
@@ -28,93 +22,100 @@ namespace GameEngine
         private PositionalTree _child4 = null;
 
         // The bounding box of this node.
-        private FloatRect _bounds;
+        private readonly FloatRect _bounds;
 
-        // The axes that mark the splits among children.
-        private Vector2f _splitAxes;
+        // The axes that mark the splits among children, used to insert an object into the correct child.
+        private readonly Vector2f _splitAxes;
 
-        // The drawable counterpart to bounds.
-        private RectangleShape _boundingBox;
+        // The drawable counterpart to bounds, used for drawing the bounding box when debugging.
+        private readonly RectangleShape _boundingBox;
 
         // The number of objects that can be stored in a node before the tree is split.
-        private static int nodeCapacity = 4;
+        private const int NodeCapacity = 4;
 
-        // The thickness of the bounding box.
-        private static float borderThickness = 1f;
+        // The thickness of the bounding box and object boxes.
+        private const float BorderThickness = 1f;
 
+        // The color of the tree bounding boxes.
+        private static readonly Color TreeBorderColor = Color.Cyan;
+
+        // The color of the object bounding boxes.
+        private static readonly Color ObjectBorderColor = Color.Green;
+
+        // Constructs the positional tree based on the given bounds.
         public PositionalTree(FloatRect bounds)
         {
             _bounds = bounds;
             _splitAxes = new Vector2f(_bounds.Left + _bounds.Width / 2f, _bounds.Top + _bounds.Height / 2f);
-            _boundingBox = new RectangleShape(new Vector2f(_bounds.Width - 2 * borderThickness, _bounds.Height - 2 * borderThickness));
-            _boundingBox.Position = new Vector2f(_bounds.Left + borderThickness, _bounds.Top + borderThickness);
-            _boundingBox.OutlineThickness = borderThickness;
-            _boundingBox.OutlineColor = Game.DebugColor;
+            
+            // Sets up the drawable bounding box
+            _boundingBox = new RectangleShape(new Vector2f(_bounds.Width - 2 * BorderThickness, _bounds.Height - 2 * BorderThickness));
+            _boundingBox.Position = new Vector2f(_bounds.Left + BorderThickness, _bounds.Top + BorderThickness);
+            _boundingBox.OutlineThickness = BorderThickness;
+            _boundingBox.OutlineColor = TreeBorderColor;
             _boundingBox.FillColor = Color.Transparent;
-            _isLeaf = true;
-            _isEmptyLeaf = true;
         }
 
-        // Adds a splittable object to this node and splits the node if it exceeds capacity.
-        public void insert(Positional positionalObject)
-        {
-            if (!_isLeaf && _child1._isEmptyLeaf && _child2._isEmptyLeaf && _child3._isEmptyLeaf && _child4._isEmptyLeaf)
+        // Adds a positional object into the right part of this tree and splits the tree if necessary.
+        public void insert(Positional positionalObject) {
+            // If the object is not splitable, it automatically gets put in unsplitable objects and nothing else needs to be done.
+            if (!isSplittable(positionalObject))
             {
-                _isLeaf = true;
+                _unsplittableObjects.Add(positionalObject);
+                return;
             }
-            if (_isLeaf)
+            if (isLeaf())
             {
-                if (!isSplittable(positionalObject))
-                {
-                    _unsplittableObjects.Add(positionalObject);
-                }
-                else
-                {
-                    _splittableObjects.Add(positionalObject);
-                }
-                _isEmptyLeaf = false;
-                if (_splittableObjects.Count > nodeCapacity)
+                // If it needs to split, it will split. Otherwise it add the object to splittable objects to be split later.
+                if (_splittableObjects.Count >= NodeCapacity)
                 {
                     split();
+                } else {
+                    _splittableObjects.Add(positionalObject);
+                    return;
                 }
             }
-            else
-            {
-                insertInRightQuadrant(positionalObject);
-            }
-            return;
+            // If this got split or it is not a leaf, the object needs to be added to the right child.
+            insertInRightQuadrant(positionalObject);
         }
 
-        private void insertInRightQuadrant(Positional positionalObject) {
+        // Adds a positional object into the correct child.
+        private void insertInRightQuadrant(Positional positionalObject)
+        {
             Vector2f pos = positionalObject.Position;
             if (pos.X >= _splitAxes.X)
             {
                 if (pos.Y >= _splitAxes.Y)
                 {
+                    // Goes to child1 if +X and +Y in reltation to the split axes.
                     _child1.insert(positionalObject);
+                    return;
                 }
                 else if (pos.Y > _bounds.Top - _bounds.Height)
                 {
+                    // Goes to child4 if +X and -Y in relation to the split axes.
                     _child4.insert(positionalObject);
+                    return;
                 }
             }
             else if (pos.X > _bounds.Left - _bounds.Width)
             {
                 if (pos.Y >= _splitAxes.Y)
                 {
+                    // Goes to child2 if -X and +Y in relation to the split axes.
                     _child2.insert(positionalObject);
+                    return;
                 }
                 else if (pos.Y > _bounds.Top - _bounds.Height)
                 {
+                    // Goes to child3 if -X and -Y in relation to the split axes.
                     _child3.insert(positionalObject);
+                    return;
                 }
             }
-            else
-            {
-                _unsplittableObjects.Add(positionalObject);
-            }
+            throw new Exception("Could not insert object within bounds between (" + _bounds.Left + ", " + _bounds.Top + ") and (" 
+                                + (_bounds.Left + _bounds.Width) + ", " + (_bounds.Top + _bounds.Height) + ")");
         }
-
 
         // Calls insert on all collidable objects in the provided list.
         public void insertAll(List<Positional> objects)
@@ -130,64 +131,93 @@ namespace GameEngine
         {
             if (_splittableObjects.Remove(positionalObject) || _unsplittableObjects.Remove(positionalObject))
             {
-                if (_isLeaf && _splittableObjects.Count == 0)
-                {
-                    _isEmptyLeaf = true;
-                }
                 return true;
             }
-            //deleteFromRightQuadrant(positionalObject);
-            if (!_isLeaf)
+            else if (!isLeaf())
             {
-            return (_child1.delete(positionalObject) ||
-            _child2.delete(positionalObject) ||
-            _child3.delete(positionalObject) ||
-            _child4.delete(positionalObject));
+                return _child1.delete(positionalObject) || _child2.delete(positionalObject) || _child3.delete(positionalObject) || _child4.delete(positionalObject);
             }
             return false;
         }
-        private void deleteFromRightQuadrant(Positional positionalObject)
-        {
-            Vector2f pos = positionalObject.Position;
-            if (pos.X >= _splitAxes.X)
-            {
-                if (pos.Y >= _splitAxes.Y)
-                {
-                    _child1.delete(positionalObject);
-                }
-                else
-                {
-                    _child4.delete(positionalObject);
-                }
-            }
-            else
-            {
-                if (pos.Y >= _splitAxes.Y)
-                {
-                    _child2.delete(positionalObject);
-                }
-                else
-                {
-                    _child3.delete(positionalObject);
-                }
-            }
-        }
 
+        // Simply deletes the object, changes its position, and reinserts it, guaranteeing it will be moved into the correct part of the tree.
         public void move (Positional positionalObject, Vector2f newPos)
         {
-            //delete(positionalObject);
+            delete(positionalObject);
             positionalObject.Position = newPos;
-            //insert(positionalObject);
+            insert(positionalObject);
         }
 
+        // TODO: Implement this.
         public void HandleCollisions()
         {
             
         }
 
+        // Constructs the children if they are null and moves all splittable objects into their correct quadrant
+        public void split()
+        {
+            if (_child1 == null)
+            {
+                Vector2f size = new Vector2f(_bounds.Width / 2f, _bounds.Height / 2f);
+                _child1 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left + size.X, _bounds.Top + size.Y), size));
+                _child2 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left, _bounds.Top + size.Y), size));
+                _child3 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left, _bounds.Top), size));
+                _child4 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left + size.X, _bounds.Top), size));
+            }
+            for (int i = _splittableObjects.Count - 1; i > -1; i--)
+            {
+                insertInRightQuadrant(_splittableObjects[i]);
+            }
+            _splittableObjects.Clear();
+        }
+
+        // Checks if this is a leaf by determining if the children are empty
+        private bool isLeaf()
+        {
+            return _child1 == null || _child1.isEmpty() && _child2.isEmpty() && _child3.isEmpty() && _child4.isEmpty();
+        }
+
+        // Recursively checks if all linked children are empty.
+        private bool isEmpty()
+        {
+            return _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0 && _child1 == null || 
+                   _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0 && _child1.isEmpty() && 
+                   _child2.isEmpty() && _child3.isEmpty() && _child4.isEmpty();
+        }
+
+        // Checks if an object is splitable by determining if either of the axes intersect it.
+        private bool isSplittable(Positional positionalObject)
+        {
+            if (positionalObject is not Collidable)
+            {
+                return true;
+            }
+            FloatRect collisionRect = ((Collidable)positionalObject).CollisionRect;
+            return !(collisionRect.Left < _splitAxes.X ^ collisionRect.Left + collisionRect.Width < _splitAxes.X)
+                    && !(collisionRect.Top < _splitAxes.Y ^ collisionRect.Top + collisionRect.Height < _splitAxes.Y);
+        }
+
+        // Draws a box around the bounds of this nodes and all non-empty children, recursively.
         public void RecursiveDraw()
         {
-            Game.RenderWindow.Draw(_boundingBox);
+            if (!isEmpty())
+            {
+                Game.RenderWindow.Draw(_boundingBox);
+            }
+            drawObjectCollisionBoxes();
+            if (!isLeaf())
+            {
+                _child1.RecursiveDraw();
+                _child2.RecursiveDraw();
+                _child3.RecursiveDraw();
+                _child4.RecursiveDraw();
+            }
+        }
+
+        // Draws a box around the collision box of each object in this node.
+        private void drawObjectCollisionBoxes()
+        {
             foreach (Positional positionalObject in _splittableObjects)
             {
                 FloatRect drawRect;
@@ -199,49 +229,31 @@ namespace GameEngine
                 {
                     continue;
                 }
-                RectangleShape drawableRect = new RectangleShape(new Vector2f(drawRect.Width - 2 * borderThickness, drawRect.Height - 2 * borderThickness));
-                drawableRect.Position = new Vector2f(drawRect.Left + borderThickness, drawRect.Top + borderThickness);
-                drawableRect.OutlineThickness = borderThickness;
-                drawableRect.OutlineColor = Game.DebugColor;
+                RectangleShape drawableRect = new RectangleShape(new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness));
+                drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
+                drawableRect.OutlineThickness = BorderThickness;
+                drawableRect.OutlineColor = ObjectBorderColor;
                 drawableRect.FillColor = Color.Transparent;
                 Game.RenderWindow.Draw(drawableRect);
             }
-            if (!_isLeaf)
+            foreach (Positional positionalObject in _unsplittableObjects)
             {
-                _child1.RecursiveDraw();
-                _child2.RecursiveDraw();
-                _child3.RecursiveDraw();
-                _child4.RecursiveDraw();
+                FloatRect drawRect;
+                if (positionalObject is Collidable)
+                {
+                    drawRect = ((Collidable)positionalObject).CollisionRect;
+                }
+                else
+                {
+                    continue;
+                }
+                RectangleShape drawableRect = new RectangleShape(new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness));
+                drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
+                drawableRect.OutlineThickness = BorderThickness;
+                drawableRect.OutlineColor = ObjectBorderColor;
+                drawableRect.FillColor = Color.Transparent;
+                Game.RenderWindow.Draw(drawableRect);
             }
-        }
-
-        public void split()
-        {
-            if (_child1 == null)
-            {
-                Vector2f size = new Vector2f(_bounds.Width / 2f, _bounds.Height / 2f);
-                _child1 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left + size.X, _bounds.Top + size.Y), size));
-                _child2 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left, _bounds.Top + size.Y), size));
-                _child3 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left, _bounds.Top), size));
-                _child4 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left + size.X, _bounds.Top), size));
-            }
-            foreach (Positional splittableObject in _splittableObjects)
-            {
-                insertInRightQuadrant(splittableObject);
-            }
-            _splittableObjects.Clear();
-            _isLeaf = false;
-        }
-
-        private bool isSplittable(Positional positionalObject)
-        {
-            if (positionalObject is not Collidable)
-            {
-                return true;
-            }
-            FloatRect collisionRect = ((Collidable)positionalObject).CollisionRect;
-            return !(collisionRect.Left < _splitAxes.X ^ collisionRect.Left + collisionRect.Width < _splitAxes.X)
-                    && !(collisionRect.Top < _splitAxes.Y ^ collisionRect.Top + collisionRect.Height < _splitAxes.Y);
         }
     }
 }

@@ -89,7 +89,7 @@ namespace GameEngine
                     }
                 }
             }
-            //_collidableObjects.handleCollisions();
+            //_positionalObjects.handleCollisions();
         }
 
         // This function calls update on each of our game objects.
@@ -118,7 +118,7 @@ namespace GameEngine
             // gameObjects. If our lambda returns true, that game object ends up being
             // removed from our list.
             //_gameObjects.RemoveAll(isDead);
-            for (int i = _gameObjects.Count - 1; i > 0; i--)
+            for (int i = _gameObjects.Count - 1; i > -1; i--)
             {
                 GameObject gameObject = _gameObjects[i];
                 if (gameObject.IsDead())
