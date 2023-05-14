@@ -5,7 +5,7 @@ using SFML.System;
 namespace GameEngine
 {
     // A sprite that can have multiple animations and play them with different AnimationModes.
-    class AnimatedSprite : GameObject
+    class AnimatedSprite : GameObject, Renderable
     {
         // Specifies how to play an animation.
         public enum AnimationMode
@@ -137,7 +137,7 @@ namespace GameEngine
         }
 
         // Functions overridden from GameObject:
-        public override void Draw()
+        public void Draw()
         {
             // Don't draw if we're not drawable.
             if (!IsDrawable()) return;
@@ -161,10 +161,10 @@ namespace GameEngine
             }
         }
 
-        public override FloatRect GetCollisionRect()
+        public FloatRect RenderBounds
         {
             // Just use the boundaries of the sprite.
-            return _sprite.GetGlobalBounds();
+            get => _sprite.GetGlobalBounds();
         }
 
         // Functions to determine which frame to display.

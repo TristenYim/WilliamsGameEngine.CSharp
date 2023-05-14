@@ -4,7 +4,7 @@ using SFML.System;
 namespace GameEngine
 {
     // This class represents any object which displays text.
-    class TextObject : GameObject
+    class TextObject : GameObject, Renderable
     {
         
         // The text we draw on screen.
@@ -33,9 +33,14 @@ namespace GameEngine
             // This tag can be used to easily tell if this is a text object
             AssignTag("textObject");
         }
-        public override void Draw()
+        
+        public FloatRect RenderBounds
         {
+            get => _text.GetGlobalBounds();
+        }
 
+        public void Draw()
+        {
             // Draws the text on screen
             Game.RenderWindow.Draw(_text);
         }

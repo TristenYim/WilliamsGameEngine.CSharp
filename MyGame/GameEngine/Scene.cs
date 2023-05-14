@@ -59,7 +59,7 @@ namespace GameEngine
         // This method lets game objects respond to collisions.
         private void HandleCollisions()
         {
-            for (int i = 0; i < _gameObjects.Count; i++)
+            /*for (int i = 0; i < _gameObjects.Count; i++)
             {
                 var gameObject = _gameObjects[i];
 
@@ -88,8 +88,8 @@ namespace GameEngine
                         otherGameObject.HandleCollision(gameObject);
                     }
                 }
-            }
-            //_positionalObjects.handleCollisions();
+            }*/
+            _positionalObjects.HandleCollisions();
         }
 
         // This function calls update on each of our game objects.
@@ -101,7 +101,13 @@ namespace GameEngine
         // This function calls draw on each of our game objects.
         private void DrawGameObjects()
         {
-            foreach (var gameObject in _gameObjects) gameObject.Draw();
+            foreach (var gameObject in _gameObjects) 
+            {
+                if (gameObject is Renderable)
+                {
+                    ((Renderable)gameObject).Draw();
+                }
+            }
         }
 
         // This function removes objects that indicate they are dead from the scene.

@@ -69,52 +69,57 @@ namespace GameEngine
                 // If it needs to split, it will split. Otherwise it add the object to splittable objects to be split later.
                 if (_splittableObjects.Count >= NodeCapacity)
                 {
-                    split();
+                    Split();
                 } else {
                     _splittableObjects.Add(positionalObject);
                     return;
                 }
             }
             // If this got split or it is not a leaf, the object needs to be added to the right child.
-            insertInRightQuadrant(positionalObject);
+            InsertInRightQuadrant(positionalObject);
         }
 
         // Adds a positional object into the correct child.
-        private void insertInRightQuadrant(Positional positionalObject)
+        private void InsertInRightQuadrant(Positional positionalObject)
         {
             Vector2f pos = positionalObject.Position;
-            if (pos.X >= _splitAxes.X)
+            if (pos.X >= _splitAxes.X && pos.X <= _bounds.Left + _bounds.Width)
             {
-                if (pos.Y >= _splitAxes.Y)
+                if (pos.Y >= _splitAxes.Y && pos.Y <= _bounds.Top + _bounds.Height)
                 {
                     // Goes to child1 if +X and +Y in reltation to the split axes.
                     _child1.insert(positionalObject);
                     return;
                 }
-                else if (pos.Y > _bounds.Top - _bounds.Height)
+                else if (pos.Y >= _bounds.Top)
                 {
                     // Goes to child4 if +X and -Y in relation to the split axes.
                     _child4.insert(positionalObject);
                     return;
                 }
             }
-            else if (pos.X > _bounds.Left - _bounds.Width)
+            else if (pos.X >= _bounds.Left)
             {
-                if (pos.Y >= _splitAxes.Y)
+                if (pos.Y >= _splitAxes.Y && pos.Y <= _bounds.Top + _bounds.Height)
                 {
                     // Goes to child2 if -X and +Y in relation to the split axes.
                     _child2.insert(positionalObject);
                     return;
                 }
-                else if (pos.Y > _bounds.Top - _bounds.Height)
+                else if (pos.Y >= _bounds.Top)
                 {
                     // Goes to child3 if -X and -Y in relation to the split axes.
                     _child3.insert(positionalObject);
                     return;
                 }
             }
-            throw new Exception("Could not insert object within bounds between (" + _bounds.Left + ", " + _bounds.Top + ") and (" 
-                                + (_bounds.Left + _bounds.Width) + ", " + (_bounds.Top + _bounds.Height) + ")");
+
+            // Currently, if the object for whatever reason cannot be inserted into any of these areas, it is marked as an unsplittable object.
+            // By uncommenting the exception, you can see that this sometimes leads to objects on the borders being added as unsplittable objects.
+            // TODO: Fix the problem mentioned above.
+            _unsplittableObjects.Add(positionalObject);
+            /*throw new Exception("Could not insert object within bounds between (" + _bounds.Left + ", " + _bounds.Top + ") and (" 
+                                + (_bounds.Left + _bounds.Width) + ", " + (_bounds.Top + _bounds.Height) + ")");*/
         }
 
         // Calls insert on all collidable objects in the provided list.
@@ -148,14 +153,102 @@ namespace GameEngine
             insert(positionalObject);
         }
 
-        // TODO: Implement this.
+        // Handles the collisions of all objects in the entire tree.
+        // This is implemented using something called recursion, where a method repeatedly calls itself.
+        // In this case, the node handles its own collisions then divides a list of objects that check for collisions into four separate lists.
+        // Each check list only contains objects that intersect its corresponding child node.
+        // This makes checking for collisions O(n log(n)) rather than O(n^2).
         public void HandleCollisions()
         {
-            
+            HandleCollisions(new LinkedList<Collidable>());
+        }
+        private void HandleCollisions(LinkedList<Collidable> checkList)
+        {
+            // Handle collisions in splittable objects.
+            HandleCollisionsInList(_splittableObjects, checkList);
+
+            // Handle collisions in unsplittable objects.
+            HandleCollisionsInList(_unsplittableObjects, checkList);
+
+            // If this is a leaf, you're done checking for collisions.
+            if (isLeaf())
+            {
+                return;
+            }
+
+            // Divide the check list into a separte check list for each child.
+            // Each check list only contains objects within the bounds of the child.
+            FloatRect child1Bounds = _child1._bounds;
+            FloatRect child2Bounds = _child2._bounds;
+            FloatRect child3Bounds = _child3._bounds;
+            FloatRect child4Bounds = _child4._bounds;
+            LinkedList<Collidable> child1CheckList = new LinkedList<Collidable>();
+            LinkedList<Collidable> child2CheckList = new LinkedList<Collidable>();
+            LinkedList<Collidable> child3CheckList = new LinkedList<Collidable>();
+            LinkedList<Collidable> child4CheckList = new LinkedList<Collidable>();
+            foreach(Collidable collidable in checkList)
+            {
+                if (collidable.CollisionRect.Intersects(child1Bounds))
+                {
+                    child1CheckList.AddLast(collidable);
+                }
+                if (collidable.CollisionRect.Intersects(child2Bounds))
+                {
+                    child2CheckList.AddLast(collidable);
+                }
+                if (collidable.CollisionRect.Intersects(child3Bounds))
+                {
+                    child3CheckList.AddLast(collidable);
+                }
+                if (collidable.CollisionRect.Intersects(child4Bounds))
+                {
+                    child4CheckList.AddLast(collidable);
+                }
+            }
+
+            // Handle the collisions of each child.
+            _child1.HandleCollisions(child1CheckList);
+            _child2.HandleCollisions(child2CheckList);
+            _child3.HandleCollisions(child3CheckList);
+            _child4.HandleCollisions(child4CheckList);
+        }
+
+        // Each object in handle list is checked against check list and then added to check list if it is checking for collisions.
+        private void HandleCollisionsInList(List<Positional> handleList, LinkedList<Collidable> checkList)
+        {
+            foreach (var positional in handleList)
+            {
+                Collidable collidable;
+                
+                // Don't check for collisions if the object isn't even collidable
+                if (positional is Collidable)
+                {
+                    collidable = (Collidable)positional;
+                }
+                else
+                {
+                    continue;
+                }
+                // Check for collisions
+                foreach(Collidable collidableThatChecks in checkList)
+                {
+                    if (collidable.CollisionRect.Intersects(collidableThatChecks.CollisionRect))
+                    {
+                        collidableThatChecks.HandleCollision(collidable);
+                        collidable.HandleCollision(collidableThatChecks);
+                    }
+                }
+
+                // Add this to the check list if this checks for collisions
+                if (collidable.ChecksForCollisions)
+                {
+                    checkList.AddLast(collidable);
+                }
+            }
         }
 
         // Constructs the children if they are null and moves all splittable objects into their correct quadrant
-        public void split()
+        public void Split()
         {
             if (_child1 == null)
             {
@@ -167,7 +260,7 @@ namespace GameEngine
             }
             for (int i = _splittableObjects.Count - 1; i > -1; i--)
             {
-                insertInRightQuadrant(_splittableObjects[i]);
+                InsertInRightQuadrant(_splittableObjects[i]);
             }
             _splittableObjects.Clear();
         }
@@ -205,7 +298,7 @@ namespace GameEngine
             {
                 Game.RenderWindow.Draw(_boundingBox);
             }
-            drawObjectCollisionBoxes();
+            DrawObjectCollisionBoxes();
             if (!isLeaf())
             {
                 _child1.RecursiveDraw();
@@ -216,7 +309,7 @@ namespace GameEngine
         }
 
         // Draws a box around the collision box of each object in this node.
-        private void drawObjectCollisionBoxes()
+        private void DrawObjectCollisionBoxes()
         {
             foreach (Positional positionalObject in _splittableObjects)
             {
