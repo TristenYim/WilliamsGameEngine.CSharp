@@ -50,7 +50,7 @@ namespace GameEngine
             UpdateGameObjects(time);
             RemoveDeadGameObjects();
             DrawGameObjects();
-            _positionalObjects.RecursiveDraw();
+            //_positionalObjects.RecursiveDraw();
 
             // Draw the window as updated by the game objects.
             Game.RenderWindow.Display();
@@ -60,13 +60,18 @@ namespace GameEngine
         private void HandleCollisions()
         {
             /*for (int i = 0; i < _gameObjects.Count; i++)
-            {
+            {    
                 var gameObject = _gameObjects[i];
 
-                // Only check objects that ask to be checked.
-                if (!gameObject.IsCollisionCheckEnabled()) continue;
+                if (gameObject is not Collidable)
+                {
+                    continue;
+                }
 
-                FloatRect collisionRect = gameObject.GetCollisionRect();
+                // Only check objects that ask to be checked.
+                if (!((Collidable)gameObject).ChecksForCollisions) continue;
+
+                FloatRect collisionRect = ((Collidable)gameObject).CollisionRect;
 
                 // Don't bother checking if this game object has a collision rectangle with no area.
                 if (collisionRect.Height == 0 || collisionRect.Width == 0) continue;
@@ -76,16 +81,21 @@ namespace GameEngine
                 {
                     var otherGameObject = _gameObjects[j];
 
+                    if (otherGameObject is not Collidable)
+                    {
+                        continue;
+                    }
+
                     // Don't check an object colliding with itself.
                     if (gameObject == otherGameObject) continue;
 
                     if (gameObject.IsDead()) return;
 
                     // When we find a collision, invoke the collision handler for both objects.
-                    if (collisionRect.Intersects(otherGameObject.GetCollisionRect()))
+                    if (collisionRect.Intersects(((Collidable)otherGameObject).CollisionRect))
                     {
-                        gameObject.HandleCollision(otherGameObject);
-                        otherGameObject.HandleCollision(gameObject);
+                        ((Collidable)gameObject).HandleCollision((Collidable)otherGameObject);
+                        ((Collidable)otherGameObject).HandleCollision((Collidable)gameObject);
                     }
                 }
             }*/
@@ -131,10 +141,7 @@ namespace GameEngine
                 {
                     if (gameObject is Positional)
                     {
-                        if (!_positionalObjects.delete(((Positional)gameObject)))
-                        {
-                            Console.WriteLine("An error occured while deleting.");
-                        }
+                        _positionalObjects.delete((Positional)gameObject);
                     }
                     _gameObjects.RemoveAt(i);
                 }

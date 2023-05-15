@@ -20,6 +20,9 @@ namespace GameEngine
         private PositionalTree _child2 = null;
         private PositionalTree _child3 = null;
         private PositionalTree _child4 = null;
+        
+        // True if this node is a leaf node. Used for just about every operation.
+        private bool _isLeaf;
 
         // The bounding box of this node.
         private readonly FloatRect _bounds;
@@ -54,6 +57,7 @@ namespace GameEngine
             _boundingBox.OutlineThickness = BorderThickness;
             _boundingBox.OutlineColor = TreeBorderColor;
             _boundingBox.FillColor = Color.Transparent;
+            _isLeaf = true;
         }
 
         // Adds a positional object into the right part of this tree and splits the tree if necessary.
@@ -64,7 +68,7 @@ namespace GameEngine
                 _unsplittableObjects.Add(positionalObject);
                 return;
             }
-            if (isLeaf())
+            if (_isLeaf)
             {
                 // If it needs to split, it will split. Otherwise it add the object to splittable objects to be split later.
                 if (_splittableObjects.Count >= NodeCapacity)
@@ -132,17 +136,60 @@ namespace GameEngine
         }
 
         // Searches for an instance of an object and deletes it.
-        public bool delete(Positional positionalObject)
+        public void delete(Positional positionalObject)
         {
-            if (_splittableObjects.Remove(positionalObject) || _unsplittableObjects.Remove(positionalObject))
+            // First try the easy part, checking if the object can be removed from the splittable or unsplittable objects.
+            if (_unsplittableObjects.Remove(positionalObject) || _isLeaf && _splittableObjects.Remove(positionalObject))
             {
-                return true;
+                return;
             }
-            else if (!isLeaf())
+
+            // Then try deleting it from the right child.
+            deleteFromRightQuadrant(positionalObject);
+
+            // It is now a leaf if all its children are empty leaves after deleting.
+            if (_child1 == null || _child1.isEmptyLeaf() && _child2.isEmptyLeaf() && _child3.isEmptyLeaf() && _child4.isEmptyLeaf())
             {
-                return _child1.delete(positionalObject) || _child2.delete(positionalObject) || _child3.delete(positionalObject) || _child4.delete(positionalObject);
+                _isLeaf = true;
             }
-            return false;
+            return;
+        }
+
+        private void deleteFromRightQuadrant(Positional positionalObject)
+        {
+            Vector2f pos = positionalObject.Position;
+            if (pos.X >= _splitAxes.X && pos.X <= _bounds.Left + _bounds.Width)
+            {
+                if (pos.Y >= _splitAxes.Y && pos.Y <= _bounds.Top + _bounds.Height)
+                {
+                    // Deletes from child1 if +X and +Y in reltation to the split axes.
+                    _child1.delete(positionalObject);
+                    return;
+                }
+                else if (pos.Y >= _bounds.Top)
+                {
+                    // Deletes from child4 if +X and -Y in relation to the split axes.
+                    _child4.delete(positionalObject);
+                    return;
+                }
+            }
+            else if (pos.X >= _bounds.Left)
+            {
+                if (pos.Y >= _splitAxes.Y && pos.Y <= _bounds.Top + _bounds.Height)
+                {
+                    // Deletes from child2 if -X and +Y in relation to the split axes.
+                    _child2.delete(positionalObject);
+                    return;
+                }
+                else if (pos.Y >= _bounds.Top)
+                {
+                    // Goes to child3 if -X and -Y in relation to the split axes.
+                    _child3.delete(positionalObject);
+                    return;
+                }
+            }
+            throw new Exception ("Failed to delete object between (" + _bounds.Left + ", " + _bounds.Top + ")" + 
+                                 "and (" + (_bounds.Left + _bounds.Width) + ", " + _bounds.Top + _bounds.Height + ")");
         }
 
         // Simply deletes the object, changes its position, and reinserts it, guaranteeing it will be moved into the correct part of the tree.
@@ -164,15 +211,13 @@ namespace GameEngine
         }
         private void HandleCollisions(LinkedList<Collidable> checkList)
         {
-            // Handle collisions in splittable objects.
-            HandleCollisionsInList(_splittableObjects, checkList);
-
             // Handle collisions in unsplittable objects.
             HandleCollisionsInList(_unsplittableObjects, checkList);
 
-            // If this is a leaf, you're done checking for collisions.
-            if (isLeaf())
+            // If this is a leaf, after checking collisions in splittable objects, you're done checking.
+            if (_isLeaf)
             {
+                HandleCollisionsInList(_splittableObjects, checkList);
                 return;
             }
 
@@ -188,19 +233,24 @@ namespace GameEngine
             LinkedList<Collidable> child4CheckList = new LinkedList<Collidable>();
             foreach(Collidable collidable in checkList)
             {
-                if (collidable.CollisionRect.Intersects(child1Bounds))
+                FloatRect collisionRect = collidable.CollisionRect;
+                float left = collisionRect.Left;
+                float top = collisionRect.Top;
+                float right = left + collisionRect.Width;
+                float bottom = top + collisionRect.Height;
+                if (right > _splitAxes.X && bottom > _splitAxes.Y)
                 {
                     child1CheckList.AddLast(collidable);
                 }
-                if (collidable.CollisionRect.Intersects(child2Bounds))
+                if (right > _splitAxes.X && top < _splitAxes.Y)
                 {
                     child2CheckList.AddLast(collidable);
                 }
-                if (collidable.CollisionRect.Intersects(child3Bounds))
+                if (left < _splitAxes.X && bottom > _splitAxes.Y)
                 {
                     child3CheckList.AddLast(collidable);
                 }
-                if (collidable.CollisionRect.Intersects(child4Bounds))
+                if (left < _splitAxes.X && top < _splitAxes.Y)
                 {
                     child4CheckList.AddLast(collidable);
                 }
@@ -258,6 +308,7 @@ namespace GameEngine
                 _child3 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left, _bounds.Top), size));
                 _child4 = new PositionalTree(new FloatRect(new Vector2f(_bounds.Left + size.X, _bounds.Top), size));
             }
+            _isLeaf = false;
             for (int i = _splittableObjects.Count - 1; i > -1; i--)
             {
                 InsertInRightQuadrant(_splittableObjects[i]);
@@ -265,18 +316,10 @@ namespace GameEngine
             _splittableObjects.Clear();
         }
 
-        // Checks if this is a leaf by determining if the children are empty
-        private bool isLeaf()
+        // Checks if an object is both empty and is leaf is true. Used for determining whether to update is leaf when deleting.
+        private bool isEmptyLeaf()
         {
-            return _child1 == null || _child1.isEmpty() && _child2.isEmpty() && _child3.isEmpty() && _child4.isEmpty();
-        }
-
-        // Recursively checks if all linked children are empty.
-        private bool isEmpty()
-        {
-            return _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0 && _child1 == null || 
-                   _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0 && _child1.isEmpty() && 
-                   _child2.isEmpty() && _child3.isEmpty() && _child4.isEmpty();
+            return _isLeaf && _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0;
         }
 
         // Checks if an object is splitable by determining if either of the axes intersect it.
@@ -294,12 +337,9 @@ namespace GameEngine
         // Draws a box around the bounds of this nodes and all non-empty children, recursively.
         public void RecursiveDraw()
         {
-            if (!isEmpty())
-            {
-                Game.RenderWindow.Draw(_boundingBox);
-            }
+            Game.RenderWindow.Draw(_boundingBox);
             DrawObjectCollisionBoxes();
-            if (!isLeaf())
+            if (!_isLeaf)
             {
                 _child1.RecursiveDraw();
                 _child2.RecursiveDraw();
