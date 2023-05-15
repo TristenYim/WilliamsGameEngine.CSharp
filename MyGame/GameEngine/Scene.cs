@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using GameEngine;
+﻿using System.Collections.Generic;
 using SFML.Graphics;
 using SFML.System;
 
@@ -26,7 +24,7 @@ namespace GameEngine
             _gameObjects.Add(gameObject);
             if (gameObject is Positional)
             {
-                _positionalObjects.insert(((Positional)gameObject));
+                _positionalObjects.Insert(((Positional)gameObject));
             }
         }
 
@@ -141,7 +139,7 @@ namespace GameEngine
                 {
                     if (gameObject is Positional)
                     {
-                        _positionalObjects.delete((Positional)gameObject);
+                        _positionalObjects.Delete((Positional)gameObject);
                     }
                     _gameObjects.RemoveAt(i);
                 }
