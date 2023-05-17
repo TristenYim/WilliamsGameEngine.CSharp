@@ -4,7 +4,7 @@ using SFML.Graphics;
 namespace GameEngine
 {
     // This represents any objects that can be collided with.
-    public interface Collidable
+    interface Collidable
     {
         // Used to determine whether this checks for collisions itself or simply can be collided with.
         public bool ChecksForCollisions

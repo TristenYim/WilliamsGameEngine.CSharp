@@ -10,7 +10,8 @@ namespace GameEngine
         // This holds our game objects.
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
 
-        private PositionalTree _positionalObjects = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
+        // This holds all objects that implement the positional interface. This is used to improve the speed of collision detection and object searching.
+        private PositionalTree _positionalObjects = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
 
         public PositionalTree PositionalTree
         {
@@ -48,7 +49,7 @@ namespace GameEngine
             UpdateGameObjects(time);
             RemoveDeadGameObjects();
             DrawGameObjects();
-            //_positionalObjects.RecursiveDraw();
+            _positionalObjects.RecursiveDraw();
 
             // Draw the window as updated by the game objects.
             Game.RenderWindow.Display();

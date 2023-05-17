@@ -4,7 +4,7 @@ using SFML.Graphics;
 namespace GameEngine
 {
     // This represents any objects that can be drawn.
-    public interface Renderable
+    interface Renderable
     {
         // Game calls draw on any object that implements this.
         public void Draw();
