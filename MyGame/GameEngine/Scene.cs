@@ -23,9 +23,9 @@ namespace GameEngine
         {
             // This adds the game object onto the back (the end) of the list of game objects.
             _gameObjects.Add(gameObject);
-            if (gameObject is Positional)
+            if (gameObject.BelongsOnTree)
             {
-                _positionalObjects.Insert(((Positional)gameObject));
+                _positionalObjects.Insert(gameObject);
             }
         }
 
@@ -112,10 +112,7 @@ namespace GameEngine
         {
             foreach (var gameObject in _gameObjects) 
             {
-                if (gameObject is Renderable)
-                {
-                    ((Renderable)gameObject).Draw();
-                }
+                gameObject.Draw();
             }
         }
 
@@ -138,9 +135,9 @@ namespace GameEngine
                 GameObject gameObject = _gameObjects[i];
                 if (gameObject.IsDead())
                 {
-                    if (gameObject is Positional)
+                    if (gameObject.BelongsOnTree)
                     {
-                        _positionalObjects.Delete((Positional)gameObject);
+                        _positionalObjects.Delete(gameObject);
                     }
                     _gameObjects.RemoveAt(i);
                 }

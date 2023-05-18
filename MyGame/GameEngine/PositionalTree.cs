@@ -9,10 +9,10 @@ namespace GameEngine
     class PositionalTree
     {
         // Represents all collidable objects that cannot be fully contained in any of the child nodes.
-        private List<Positional> _unsplittableObjects = new List<Positional>();
+        private List<GameObject> _unsplittableObjects = new List<GameObject>();
 
         // Represents all positional objects that can be fully contained in a child node.
-        private List<Positional> _splittableObjects = new List<Positional>();
+        private List<GameObject> _splittableObjects = new List<GameObject>();
 
         // The children are numbered based on the standard mathematical quadrant system.
         private PositionalTree _child1 = null;
@@ -77,14 +77,20 @@ namespace GameEngine
         }
 
         // Adds a positional object into the right part of this tree and splits the tree if necessary.
-        public void Insert(Positional pObject) {
+        public void Insert(GameObject pObject) {
             // True if the coordinate of pObject is positive in relation to its split axis.
             bool posX;
             bool posY;
 
-            if (pObject is Collidable)
+            if (!pObject.BelongsOnTree)
             {
-                FloatRect collisionRect = ((Collidable)pObject).CollisionRect;
+                Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
+                                  "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
+                return;
+            }
+            if (pObject.IsCollidable)
+            {
+                FloatRect collisionRect = pObject.GetCollisionRect();
                 float left = collisionRect.Left;
                 float top = collisionRect.Top;
                 float right = left + collisionRect.Width;
@@ -181,10 +187,16 @@ namespace GameEngine
         }
 
         // This deletes an object using its TreeNodePointer if available, or by performing a search delete if not.
-        public void Delete(Positional pObject)
+        public void Delete(GameObject pObject)
         {
             //SearchDelete(pObject);
             // In most cases, there should be no reason to perform a search-delete on a pObject.
+            if (!pObject.BelongsOnTree)
+            {
+                Console.WriteLine("Warning: Tried to delete object that does not belong on tree" +
+                                  "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
+                return;
+            }
             if (pObject.TreeNodePointer == null)
             {
                 Console.WriteLine("Warning: Performed a search-delete for an object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")");
@@ -211,7 +223,7 @@ namespace GameEngine
         }
 
         // Searches for an instance of an object and deletes it.
-        private void SearchDelete(Positional pObject)
+        private void SearchDelete(GameObject pObject)
         {
             // First try the easy part, checking if the object can be removed from the splittable or unsplittable objects.
             if (_unsplittableObjects.Remove(pObject) || _isLeaf && _splittableObjects.Remove(pObject))
@@ -275,7 +287,7 @@ namespace GameEngine
         }
 
         // Simply deletes the object, changes its position, and reinserts it, guaranteeing it will be moved into the correct part of the tree.
-        public void Move (Positional pObject, Vector2f newPos)
+        public void Move (GameObject pObject, Vector2f newPos)
         {
             Delete(pObject);
             pObject.Position = newPos;
@@ -289,9 +301,9 @@ namespace GameEngine
         // This makes checking for collisions O(n log(n)) rather than O(n^2).
         public void HandleCollisions()
         {
-            HandleCollisions(new LinkedList<Collidable>());
+            HandleCollisions(new LinkedList<GameObject>());
         }
-        private void HandleCollisions(LinkedList<Collidable> checkList)
+        private void HandleCollisions(LinkedList<GameObject> checkList)
         {
             // Handle collisions in unsplittable objects.
             HandleCollisionsInList(_unsplittableObjects, checkList);
@@ -305,13 +317,13 @@ namespace GameEngine
 
             // Divide the check list into a separte check list for each child.
             // Each check list only contains objects within the bounds of the child.
-            LinkedList<Collidable> child1CheckList = new LinkedList<Collidable>();
-            LinkedList<Collidable> child2CheckList = new LinkedList<Collidable>();
-            LinkedList<Collidable> child3CheckList = new LinkedList<Collidable>();
-            LinkedList<Collidable> child4CheckList = new LinkedList<Collidable>();
-            foreach(Collidable collidable in checkList)
+            LinkedList<GameObject> child1CheckList = new LinkedList<GameObject>();
+            LinkedList<GameObject> child2CheckList = new LinkedList<GameObject>();
+            LinkedList<GameObject> child3CheckList = new LinkedList<GameObject>();
+            LinkedList<GameObject> child4CheckList = new LinkedList<GameObject>();
+            foreach(GameObject collidable in checkList)
             {
-                FloatRect collisionRect = collidable.CollisionRect;
+                FloatRect collisionRect = collidable.GetCollisionRect();
                 float left = collisionRect.Left;
                 float top = collisionRect.Top;
                 float right = left + collisionRect.Width;
@@ -342,25 +354,19 @@ namespace GameEngine
         }
 
         // Each object in handle list is checked against check list and then added to check list if it is checking for collisions.
-        private void HandleCollisionsInList(List<Positional> handleList, LinkedList<Collidable> checkList)
+        private void HandleCollisionsInList(List<GameObject> handleList, LinkedList<GameObject> checkList)
         {
-            foreach (var positional in handleList)
+            foreach (var collidable in handleList)
             {
-                Collidable collidable;
-                
                 // Don't check for collisions if the object isn't even collidable
-                if (positional is Collidable)
-                {
-                    collidable = (Collidable)positional;
-                }
-                else
+                if (!collidable.IsCollidable)
                 {
                     continue;
                 }
                 // Check for collisions
-                foreach(Collidable collidableThatChecks in checkList)
+                foreach(GameObject collidableThatChecks in checkList)
                 {
-                    if (collidable.CollisionRect.Intersects(collidableThatChecks.CollisionRect))
+                    if (collidable.GetCollisionRect().Intersects(collidableThatChecks.GetCollisionRect()))
                     {
                         collidableThatChecks.HandleCollision(collidable);
                         collidable.HandleCollision(collidableThatChecks);
@@ -368,7 +374,7 @@ namespace GameEngine
                 }
 
                 // Add this to the check list if this checks for collisions
-                if (collidable.ChecksForCollisions)
+                if (collidable.IsCollisionCheckEnabled())
                 {
                     checkList.AddLast(collidable);
                 }
@@ -381,7 +387,7 @@ namespace GameEngine
             return _isLeaf && _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0;
         }
 
-        private void ThrowOperationErrorException(String operation, Positional pObject)
+        private void ThrowOperationErrorException(String operation, GameObject pObject)
         {
             throw new Exception("Could not " + operation + " object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")" +
                                 "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
@@ -408,24 +414,24 @@ namespace GameEngine
             drawableRect.OutlineThickness = BorderThickness;
             drawableRect.OutlineColor = ObjectBorderColor;
             drawableRect.FillColor = Color.Transparent;
-            foreach (Positional pObject in _splittableObjects)
+            foreach (GameObject cObject in _splittableObjects)
             {
-                if (pObject is not Collidable)
+                if (!cObject.IsCollidable)
                 {
                     continue;
                 }
-                FloatRect drawRect = ((Collidable)pObject).CollisionRect;
+                FloatRect drawRect = cObject.GetCollisionRect();
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
                 drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
                 Game.RenderWindow.Draw(drawableRect);
             }
-            foreach (Positional pObject in _unsplittableObjects)
+            foreach (GameObject cObject in _unsplittableObjects)
             {
-                if (pObject is not Collidable)
+                if (!cObject.IsCollidable)
                 {
                     continue;
                 }
-                FloatRect drawRect = ((Collidable)pObject).CollisionRect;
+                FloatRect drawRect = cObject.GetCollisionRect();
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
                 drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
                 Game.RenderWindow.Draw(drawableRect);
