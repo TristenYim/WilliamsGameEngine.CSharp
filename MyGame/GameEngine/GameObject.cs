@@ -55,7 +55,7 @@ namespace GameEngine
         {
             return new FloatRect();
         }
-        
+
         // This is the object's 2D position on the positional tree.
         public virtual Vector2f Position
         {
@@ -94,6 +94,5 @@ namespace GameEngine
 
         // This is called whenever something collides with this.
         public virtual void HandleCollision(GameObject otherGameObject) {}
-        
     }
 }

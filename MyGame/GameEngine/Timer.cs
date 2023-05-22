@@ -19,6 +19,10 @@ namespace GameEngine {
         // Initializes the target time and autoreset based on parameters.
         public Timer(int targetTime, bool autoReset)
         {
+            _belongsOnTree = true;
+            _isCollidable = false;
+            _isCollisionCheckEnabled = false;
+
             _targetTime = targetTime;
             _autoReset = autoReset;
             _time = 0f;

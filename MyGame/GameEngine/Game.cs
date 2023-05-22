@@ -72,6 +72,14 @@ namespace GameEngine
             get { return _window; }
         }
 
+        public static void Draw(GameObject gameObject)
+        {
+            if (gameObject.BelongsOnTree)
+            {
+                
+            }
+        }
+
         // Get a texture (pixels) from a file
         public static Texture GetTexture(string fileName)
         {

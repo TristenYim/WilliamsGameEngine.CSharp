@@ -11,11 +11,17 @@ namespace GameEngine
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
 
         // This holds all objects that implement the positional interface. This is used to improve the speed of collision detection and object searching.
-        private PositionalTree _positionalObjects = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
-
+        protected PositionalTree _positionalObjects;
         public PositionalTree PositionalTree
         {
             get => _positionalObjects;
+        }
+
+        // This is the camera which determines how much of the positionalTree should be drawn
+        protected Camera _camera;
+        public Camera Camera
+        {
+            get => _camera;
         }
 
         // Puts a GameObject into the scene.
@@ -28,11 +34,6 @@ namespace GameEngine
                 _positionalObjects.Insert(gameObject);
             }
         }
-
-        // TODO: Add a completely quad tree for SpriteGameObjects
-        //       In its current state, handleCollisions is O(n), which is not ideal, especially if there are many objects that check for collisions
-        //       Storing a reference to each SpriteGameObject in a quad tree will make handleCollisions O(N^2), with the price of having to keep the
-        //       tree sorted
         
         // Called by the Game instance once per frame.
         public void Update(Time time)
@@ -62,15 +63,15 @@ namespace GameEngine
             {    
                 var gameObject = _gameObjects[i];
 
-                if (gameObject is not Collidable)
+                if (!gameObject.IsCollidable)
                 {
                     continue;
                 }
 
                 // Only check objects that ask to be checked.
-                if (!((Collidable)gameObject).ChecksForCollisions) continue;
+                if (!gameObject.IsCollisionCheckEnabled()) continue;
 
-                FloatRect collisionRect = ((Collidable)gameObject).CollisionRect;
+                FloatRect collisionRect = gameObject.GetCollisionRect();
 
                 // Don't bother checking if this game object has a collision rectangle with no area.
                 if (collisionRect.Height == 0 || collisionRect.Width == 0) continue;
@@ -80,7 +81,7 @@ namespace GameEngine
                 {
                     var otherGameObject = _gameObjects[j];
 
-                    if (otherGameObject is not Collidable)
+                    if (!otherGameObject.IsCollidable)
                     {
                         continue;
                     }
@@ -91,10 +92,10 @@ namespace GameEngine
                     if (gameObject.IsDead()) return;
 
                     // When we find a collision, invoke the collision handler for both objects.
-                    if (collisionRect.Intersects(((Collidable)otherGameObject).CollisionRect))
+                    if (collisionRect.Intersects(otherGameObject.GetCollisionRect()))
                     {
-                        ((Collidable)gameObject).HandleCollision((Collidable)otherGameObject);
-                        ((Collidable)otherGameObject).HandleCollision((Collidable)gameObject);
+                        gameObject.HandleCollision(otherGameObject);
+                        (otherGameObject).HandleCollision(gameObject);
                     }
                 }
             }*/
@@ -119,17 +120,7 @@ namespace GameEngine
         // This function removes objects that indicate they are dead from the scene.
         private void RemoveDeadGameObjects()
         {
-            // This is a "lambda", which is a fancy name for an anonymous function.
-            // It's "anonymous" because it doesn't have a name. We've declared a variable
-            // named "isDead", and that variable can be used to call the function, but the
-            // function itself is nameless.
-            //Predicate<GameObject> isDead = gameObject => gameObject.IsDead();
-
-            // Here we use the lambda declared above by passing it to the standard RemoveAll
-            // method on List<T>, which calls our lambda once for each element in
-            // gameObjects. If our lambda returns true, that game object ends up being
-            // removed from our list.
-            //_gameObjects.RemoveAll(isDead);
+            // Index game objects and remove them if they are dead.
             for (int i = _gameObjects.Count - 1; i > -1; i--)
             {
                 GameObject gameObject = _gameObjects[i];
@@ -137,6 +128,7 @@ namespace GameEngine
                 {
                     if (gameObject.BelongsOnTree)
                     {
+                        // Delete it from the tree if it should be on the tree.
                         _positionalObjects.Delete(gameObject);
                     }
                     _gameObjects.RemoveAt(i);

@@ -22,7 +22,7 @@ namespace GameEngine
 
         // Pointer to the parent node.
         private PositionalTree _parent;
-        
+
         // True if this node is a leaf node. Used for just about every operation.
         private bool _isLeaf;
 
@@ -31,6 +31,26 @@ namespace GameEngine
         private readonly float _topBound;
         private readonly float _rightBound;
         private readonly float _bottomBound;
+        public float LeftBound
+        {
+            get => _leftBound;
+        }
+        public float TopBound
+        {
+            get => _topBound;
+        }
+        public float RightBound
+        {
+            get => _rightBound;
+        }
+        public float BottomBound
+        {
+            get => _bottomBound;
+        }        
+        public FloatRect Bounds
+        {
+            get => new FloatRect(_leftBound, _rightBound, _rightBound - _leftBound, _topBound - _bottomBound);
+        }
 
         // The axes that mark the splits among children, used to insert an object into the correct child.
         private readonly float _xSplit;
@@ -48,16 +68,19 @@ namespace GameEngine
         // The color of the tree bounding boxes.
         private static readonly Color TreeBorderColor = Color.Cyan;
 
-        // The color of the object bounding boxes.
-        private static readonly Color ObjectBorderColor = Color.Green;
+        // The color of the splittable object bounding boxes.
+        private static readonly Color SplittableObjectBorderColor = Color.Green;
+
+        // The color of the unsplittable object bounding boxes
+        private static readonly Color UnsplittableObjectBorderColor = new Color(255, 130, 0);
 
         // Constructs the positional tree based on the given bounds.
         public PositionalTree(FloatRect bounds, PositionalTree parent)
         {
-            // Set up the parent
+            // Set the parent.
             _parent = parent;
 
-            // Set up the bounds and axes
+            // Set the bounds and axes.
             float width = bounds.Width;
             float height = bounds.Height;
             _leftBound = bounds.Left;
@@ -66,8 +89,8 @@ namespace GameEngine
             _bottomBound = _topBound + height;
             _xSplit = _leftBound + width / 2f;
             _ySplit = _topBound + height / 2f;
-            
-            // Set up the drawable bounding box
+
+            // Set the drawable bounding box.
             _boundingBox = new RectangleShape(new Vector2f(width - 2 * BorderThickness, height - 2 * BorderThickness));
             _boundingBox.Position = new Vector2f(_leftBound + BorderThickness, _topBound + BorderThickness);
             _boundingBox.OutlineThickness = BorderThickness;
@@ -77,66 +100,51 @@ namespace GameEngine
         }
 
         // Adds a positional object into the right part of this tree and splits the tree if necessary.
-        public void Insert(GameObject pObject) {
-            // True if the coordinate of pObject is positive in relation to its split axis.
-            bool posX;
-            bool posY;
-
-            if (!pObject.BelongsOnTree)
+        public void Insert(GameObject gameObject) {
+            // There are separate methods for collidable objects and point-only objects to optimize each one separately
+            if (gameObject.IsCollidable)
+            {
+                FloatRect collisionRect = gameObject.GetCollisionRect();
+                float left = collisionRect.Left;
+                float top = collisionRect.Top;
+                Insert(gameObject, left, top, left + collisionRect.Width, top + collisionRect.Height);
+            }
+            else //if (gameObject.BelongsOnTree)
+            {
+                float x = gameObject.Position.X;
+                float y = gameObject.Position.Y;
+                Insert(gameObject, x, y);
+            }
+            /*else
             {
                 Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
                                   "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
                 return;
-            }
-            if (pObject.IsCollidable)
+            }*/
+        }
+        private void Insert(GameObject cObject, float left, float top, float right, float bottom)
+        {
+            // This helper method is for collidable objects.
+            bool negX = left < _xSplit;
+            bool negY = top < _ySplit;
+            bool posX = right >= _xSplit;
+            bool posY = bottom >= _ySplit;
+
+            // Since the object has a collision box, we must additionally check if its lying on as well as outside of bounds.
+            if (!(negX ^ posX) && !(negY ^ posY) || left < _leftBound || right > _rightBound || top < _topBound || bottom > _bottomBound)
             {
-                FloatRect collisionRect = pObject.GetCollisionRect();
-                float left = collisionRect.Left;
-                float top = collisionRect.Top;
-                float right = left + collisionRect.Width;
-                float bottom = top + collisionRect.Height;
-
-                bool negX = left < _xSplit;
-                bool negY = top < _ySplit;
-                posX = right >= _xSplit;
-                posY = bottom >= _ySplit;
-
-                // Since the object has a collision box, we must additionally check if its lying on as well as outside of bounds.
-                if (left < _leftBound || right > _rightBound || top < _topBound || bottom > _bottomBound
-                    || !(negX ^ posX) && !(negY ^ posY))
-                {
-                    pObject.TreeNodePointer = this;
-                    _unsplittableObjects.Add(pObject);
-                    return;
-                }
+                cObject.TreeNodePointer = this;
+                _unsplittableObjects.Add(cObject);
             }
-            else
-            {
-                float x = pObject.Position.X;
-                float y = pObject.Position.Y;
-
-                // Since this is only a point, we only have to check if its out of bounds.
-                if (x < _leftBound || x > _rightBound || y < _topBound || y > _bottomBound)
-                {
-                    pObject.TreeNodePointer = this;
-                    _unsplittableObjects.Add(pObject);
-                    return;
-                }
-
-                posX = x >= _xSplit;
-                posY = y >= _ySplit;
-            }
-
-            if (_isLeaf)
+            else if (_isLeaf)
             {
                 // If its a leaf, add it to splittable objects and split if necessary.
-                pObject.TreeNodePointer = this;
-                _splittableObjects.Add(pObject);
+                cObject.TreeNodePointer = this;
+                _splittableObjects.Add(cObject);
                 if (_splittableObjects.Count >= NodeCapacity)
                 {
                     Split();
                 }
-                return;
             }
             else
             {
@@ -145,25 +153,74 @@ namespace GameEngine
                 {
                     if (posY)
                     {
-                        _child1.Insert(pObject);
+                        _child1.Insert(cObject, left, top, right, bottom);
                     }
                     else
                     {
-                        _child4.Insert(pObject);
+                        _child4.Insert(cObject, left, top, right, bottom);
                     }
                 }
                 else
                 {
                     if (posY)
                     {
-                        _child2.Insert(pObject);
+                        _child2.Insert(cObject, left, top, right, bottom);
                     }
                     else
                     {
-                        _child3.Insert(pObject);
+                        _child3.Insert(cObject, left, top, right, bottom);
                     }
                 }
+            }
+        }
+        private void Insert(GameObject pObject, float x, float y)
+        {
+            // This helper method is for point only objects.
+            bool posX = x >= _xSplit;
+            bool posY = y >= _ySplit;
+
+            // Since this is only a point, we only have to check if its out of bounds.
+            if (x < _leftBound || x > _rightBound || y < _topBound || y > _bottomBound)
+            {
+                pObject.TreeNodePointer = this;
+                _unsplittableObjects.Add(pObject);
                 return;
+            }
+            else if (_isLeaf)
+            {
+                // If its a leaf, add it to splittable objects and split if necessary.
+                pObject.TreeNodePointer = this;
+                _splittableObjects.Add(pObject);
+                if (_splittableObjects.Count >= NodeCapacity)
+                {
+                    Split();
+                }
+            }
+            else
+            {
+                // Otherwise, insert it into the right quadrant.
+                if (posX)
+                {
+                    if (posY)
+                    {
+                        _child1.Insert(pObject, x, y);
+                    }
+                    else
+                    {
+                        _child4.Insert(pObject, x, y);
+                    }
+                }
+                else
+                {
+                    if (posY)
+                    {
+                        _child2.Insert(pObject, x, y);
+                    }
+                    else
+                    {
+                        _child3.Insert(pObject, x, y);
+                    }
+                }
             }
         }
 
@@ -179,9 +236,9 @@ namespace GameEngine
                 _child4 = new PositionalTree(new FloatRect(new Vector2f(_leftBound + size.X, _topBound), size), this);
             }
             _isLeaf = false;
-            for (int i = _splittableObjects.Count - 1; i > -1; i--)
+            foreach (var splitObject in _splittableObjects)
             {
-                Insert(_splittableObjects[i]);
+                Insert(splitObject);
             }
             _splittableObjects.Clear();
         }
@@ -189,20 +246,19 @@ namespace GameEngine
         // This deletes an object using its TreeNodePointer if available, or by performing a search delete if not.
         public void Delete(GameObject pObject)
         {
-            //SearchDelete(pObject);
             // In most cases, there should be no reason to perform a search-delete on a pObject.
-            if (!pObject.BelongsOnTree)
+            /*if (!pObject.BelongsOnTree)
             {
                 Console.WriteLine("Warning: Tried to delete object that does not belong on tree" +
                                   "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
                 return;
-            }
-            if (pObject.TreeNodePointer == null)
+            }*/
+            /*if (pObject.TreeNodePointer == null)
             {
                 Console.WriteLine("Warning: Performed a search-delete for an object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")");
                 SearchDelete(pObject);
-            }
-            else
+            }*/
+            //else
             {
                 PositionalTree node = pObject.TreeNodePointer;
 
@@ -213,7 +269,7 @@ namespace GameEngine
                     Console.WriteLine("Warning: Performed a search-delete for an object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")");
                     SearchDelete(pObject);
                 }
-                
+
                 // If deleting from this turned it into an empty leaf, merge if necessary.
                 else if (node._parent != null && node.IsEmptyLeaf())
                 {
@@ -286,12 +342,86 @@ namespace GameEngine
             }
         }
 
-        // Simply deletes the object, changes its position, and reinserts it, guaranteeing it will be moved into the correct part of the tree.
+        // Deletes the object, and inserts it into the nearest parent which can fully contain it.
         public void Move (GameObject pObject, Vector2f newPos)
         {
-            Delete(pObject);
-            pObject.Position = newPos;
-            Insert(pObject);
+            if (this != pObject.TreeNodePointer)
+            {
+                pObject.TreeNodePointer.Move(pObject, newPos);
+            }
+            else
+            {
+                pObject.Position = newPos;
+
+                // There are separate helper methods for collidable objects and point only objects to optimize each one separately 
+                if (pObject.IsCollidable)
+                {
+                    FloatRect collisionRect = pObject.GetCollisionRect();
+                    float left = collisionRect.Left;
+                    float top = collisionRect.Top;
+                    float right = left + collisionRect.Width;
+                    float bottom = top + collisionRect.Height;
+                    
+                    // If the object does not need to be moved to a different node, don't bother deleting or reinserting it.
+                    if (_parent == null || left >= _leftBound && right <= _rightBound && top >= _topBound && bottom <= _bottomBound)
+                    {
+                        // Otherwise delete and reinsert it if the object is in bounds.
+                        Delete(pObject);
+                        Insert(pObject, left, top, right, bottom);
+                    }
+                    else
+                    {
+                        // Otherwise move it if it is out of bounds
+                        Delete(pObject);
+                        _parent.Move(pObject, left, top, right, bottom);
+                    }
+                }
+                else
+                {
+                    float x = newPos.X;
+                    float y = newPos.Y;
+
+                    // If the object does not need to be moved to a different node, don't bother deleting or reinserting it.
+                    if (_parent == null || x >= _leftBound && x <= _rightBound && y >= _topBound && y <= _bottomBound)
+                    {
+                        // Otherwise delete and reinsert it so it gets put in the right child.
+                        Delete(pObject);
+                        Insert(pObject, x, y);
+                    }
+                    else
+                    {
+                        // Move it if it is out of bounds
+                        Delete(pObject);
+                        _parent.Move(pObject, x, y);
+                    }
+                }
+            }
+        }
+        private void Move (GameObject cObject, float left, float top, float right, float bottom)
+        {
+            if (_parent == null || left >= _leftBound && right <= _rightBound && top >= _topBound && bottom <= _bottomBound)
+            {
+                // If this node can fully contain the object, insert it.
+                Insert(cObject, left, top, right, bottom);
+            }
+            else
+            {
+                // Otherwise try the parent.
+                _parent.Move(cObject, left, top, right, bottom);
+            }
+        }
+        private void Move (GameObject pObject, float x, float y)
+        {
+            if (_parent == null || x >= _leftBound && x <= _rightBound && y >= _topBound && y <= _bottomBound)
+            {
+                // If this node can fully contain the object, insert it.
+                Insert(pObject, x, y);
+            }
+            else
+            {
+                // Otherwise try the parent.
+                _parent.Move(pObject, x, y);
+            }
         }
 
         // Handles the collisions of all objects in the entire tree.
@@ -301,9 +431,9 @@ namespace GameEngine
         // This makes checking for collisions O(n log(n)) rather than O(n^2).
         public void HandleCollisions()
         {
-            HandleCollisions(new LinkedList<GameObject>());
+            HandleCollisions(new List<GameObject>());
         }
-        private void HandleCollisions(LinkedList<GameObject> checkList)
+        private void HandleCollisions(List<GameObject> checkList)
         {
             // Handle collisions in unsplittable objects.
             HandleCollisionsInList(_unsplittableObjects, checkList);
@@ -317,32 +447,34 @@ namespace GameEngine
 
             // Divide the check list into a separte check list for each child.
             // Each check list only contains objects within the bounds of the child.
-            LinkedList<GameObject> child1CheckList = new LinkedList<GameObject>();
-            LinkedList<GameObject> child2CheckList = new LinkedList<GameObject>();
-            LinkedList<GameObject> child3CheckList = new LinkedList<GameObject>();
-            LinkedList<GameObject> child4CheckList = new LinkedList<GameObject>();
-            foreach(GameObject collidable in checkList)
+            List<GameObject> child1CheckList = new List<GameObject>();
+            List<GameObject> child2CheckList = new List<GameObject>();
+            List<GameObject> child3CheckList = new List<GameObject>();
+            List<GameObject> child4CheckList = new List<GameObject>();
+            foreach (var cObject in checkList)
             {
-                FloatRect collisionRect = collidable.GetCollisionRect();
+                FloatRect collisionRect = cObject.GetCollisionRect();
                 float left = collisionRect.Left;
                 float top = collisionRect.Top;
-                float right = left + collisionRect.Width;
-                float bottom = top + collisionRect.Height;
-                if (right > _xSplit && bottom > _ySplit)
+                bool posX = left + collisionRect.Width > _xSplit;
+                bool negX = left < _xSplit;
+                bool posY = top + collisionRect.Height > _ySplit;
+                bool negY = top < _ySplit;
+                if (posX && posY)
                 {
-                    child1CheckList.AddLast(collidable);
+                    child1CheckList.Add(cObject);
                 }
-                if (right > _xSplit && top < _ySplit)
+                if (posX && negY)
                 {
-                    child2CheckList.AddLast(collidable);
+                    child4CheckList.Add(cObject);
                 }
-                if (left < _xSplit && bottom > _ySplit)
+                if (negX && posY)
                 {
-                    child3CheckList.AddLast(collidable);
+                    child2CheckList.Add(cObject);
                 }
-                if (left < _xSplit && top < _ySplit)
+                if (negX && negY)
                 {
-                    child4CheckList.AddLast(collidable);
+                    child3CheckList.Add(cObject);
                 }
             }
 
@@ -354,29 +486,30 @@ namespace GameEngine
         }
 
         // Each object in handle list is checked against check list and then added to check list if it is checking for collisions.
-        private void HandleCollisionsInList(List<GameObject> handleList, LinkedList<GameObject> checkList)
+        private void HandleCollisionsInList(List<GameObject> handleList, List<GameObject> checkList)
         {
-            foreach (var collidable in handleList)
+            foreach (var cObject in handleList)
             {
                 // Don't check for collisions if the object isn't even collidable
-                if (!collidable.IsCollidable)
+                if (!cObject.IsCollidable)
                 {
                     continue;
                 }
+
                 // Check for collisions
-                foreach(GameObject collidableThatChecks in checkList)
+                foreach(var cObjectChecks in checkList)
                 {
-                    if (collidable.GetCollisionRect().Intersects(collidableThatChecks.GetCollisionRect()))
+                    if (cObject.GetCollisionRect().Intersects(cObjectChecks.GetCollisionRect()))
                     {
-                        collidableThatChecks.HandleCollision(collidable);
-                        collidable.HandleCollision(collidableThatChecks);
+                        cObjectChecks.HandleCollision(cObject);
+                        cObject.HandleCollision(cObjectChecks);
                     }
                 }
 
                 // Add this to the check list if this checks for collisions
-                if (collidable.IsCollisionCheckEnabled())
+                if (cObject.IsCollisionCheckEnabled())
                 {
-                    checkList.AddLast(collidable);
+                    checkList.Add(cObject);
                 }
             }
         }
@@ -387,6 +520,7 @@ namespace GameEngine
             return _isLeaf && _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0;
         }
 
+        // This exception helps with debugging if the engine is performing operations incorrectly for some reason.
         private void ThrowOperationErrorException(String operation, GameObject pObject)
         {
             throw new Exception("Could not " + operation + " object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")" +
@@ -396,8 +530,13 @@ namespace GameEngine
         // Draws a box around the bounds of this nodes and all non-empty children, recursively.
         public void RecursiveDraw()
         {
+            // Draw the bounding box.
             Game.RenderWindow.Draw(_boundingBox);
+
+            // Seeing the collision boxes gives other useful information.
             DrawObjectCollisionBoxes();
+
+            // Draw the bounding boxes of the children unless this is a leaf node.
             if (!_isLeaf)
             {
                 _child1.RecursiveDraw();
@@ -410,10 +549,12 @@ namespace GameEngine
         // Draws a box around the collision box of each object in this node.
         private void DrawObjectCollisionBoxes()
         {
+            // Set the thickness and border and fill color of the rect that will be drawn.
             RectangleShape drawableRect = new RectangleShape();
             drawableRect.OutlineThickness = BorderThickness;
-            drawableRect.OutlineColor = ObjectBorderColor;
             drawableRect.FillColor = Color.Transparent;
+
+            // Setup and draw the rect for each splittable and unsplittable object
             foreach (GameObject cObject in _splittableObjects)
             {
                 if (!cObject.IsCollidable)
@@ -421,6 +562,7 @@ namespace GameEngine
                     continue;
                 }
                 FloatRect drawRect = cObject.GetCollisionRect();
+                drawableRect.OutlineColor = SplittableObjectBorderColor;
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
                 drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
                 Game.RenderWindow.Draw(drawableRect);
@@ -432,6 +574,7 @@ namespace GameEngine
                     continue;
                 }
                 FloatRect drawRect = cObject.GetCollisionRect();
+                drawableRect.OutlineColor = UnsplittableObjectBorderColor;
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
                 drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
                 Game.RenderWindow.Draw(drawableRect);
