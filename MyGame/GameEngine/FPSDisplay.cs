@@ -19,12 +19,12 @@ namespace GameEngine
         // Constructs the text with a built-in font, font size, color, at a built-in position.
         public FPSDisplay()
         {
-            base.Text = new SFML.Graphics.Text("", Game.GetFont("Resources/Courneuf-Regular.ttf"), 16);
+            base.Text = new SFML.Graphics.Text("", Game.GetFont("Resources/Courneuf-Regular.ttf"), 24);
             Text.Color = FPSColor;
             Text.Position = new Vector2f(10, 10);
 
             // Set to 1 to avoid divide by 0 error.
-            _timer = new Timer(2000, false);
+            _timer = new Timer(500, false);
 
             _totalFrames = 0;
             AssignTag("textObject");
@@ -35,9 +35,9 @@ namespace GameEngine
             _timer.Update(elapsed);
             _totalFrames++;
             decimal fps = (decimal)_totalFrames / (decimal)_timer.Time * 1000;
-            Text.DisplayedString = "FPS: " + decimal.Round(fps, 1);
             if (_timer.surpassedTarget())
             {
+                Text.DisplayedString = "FPS: " + decimal.Round(fps, 1);
                 _timer.reset();
                 _totalFrames = 0;
             }

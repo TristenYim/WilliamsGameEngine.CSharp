@@ -52,9 +52,9 @@ namespace GameEngine
         }
 
         // TODO: Implement this.
-        public void Zoom(float factor)
+        public void Dilate(float factor, Vector2f origin)
         {
-
+            
         }
     }
 }

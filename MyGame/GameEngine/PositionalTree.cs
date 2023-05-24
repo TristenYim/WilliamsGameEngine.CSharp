@@ -133,13 +133,13 @@ namespace GameEngine
             // Since the object has a collision box, we must additionally check if its lying on as well as outside of bounds.
             if (!(negX ^ posX) && !(negY ^ posY) || left < _leftBound || right > _rightBound || top < _topBound || bottom > _bottomBound)
             {
-                cObject.TreeNodePointer = this;
+                cObject.NodePointer = this;
                 _unsplittableObjects.Add(cObject);
             }
             else if (_isLeaf)
             {
                 // If its a leaf, add it to splittable objects and split if necessary.
-                cObject.TreeNodePointer = this;
+                cObject.NodePointer = this;
                 _splittableObjects.Add(cObject);
                 if (_splittableObjects.Count >= NodeCapacity)
                 {
@@ -182,14 +182,14 @@ namespace GameEngine
             // Since this is only a point, we only have to check if its out of bounds.
             if (x < _leftBound || x > _rightBound || y < _topBound || y > _bottomBound)
             {
-                pObject.TreeNodePointer = this;
+                pObject.NodePointer = this;
                 _unsplittableObjects.Add(pObject);
                 return;
             }
             else if (_isLeaf)
             {
                 // If its a leaf, add it to splittable objects and split if necessary.
-                pObject.TreeNodePointer = this;
+                pObject.NodePointer = this;
                 _splittableObjects.Add(pObject);
                 if (_splittableObjects.Count >= NodeCapacity)
                 {
@@ -243,7 +243,7 @@ namespace GameEngine
             _splittableObjects.Clear();
         }
 
-        // This deletes an object using its TreeNodePointer if available, or by performing a search delete if not.
+        // This deletes an object using its NodePointer if available, or by performing a search delete if not.
         public void Delete(GameObject pObject)
         {
             // In most cases, there should be no reason to perform a search-delete on a pObject.
@@ -253,18 +253,18 @@ namespace GameEngine
                                   "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
                 return;
             }*/
-            /*if (pObject.TreeNodePointer == null)
+            /*if (pObject.NodePointer == null)
             {
                 Console.WriteLine("Warning: Performed a search-delete for an object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")");
                 SearchDelete(pObject);
             }*/
             //else
             {
-                PositionalTree node = pObject.TreeNodePointer;
+                PositionalTree node = pObject.NodePointer;
 
                 if (!node._splittableObjects.Remove(pObject) && !node._unsplittableObjects.Remove(pObject))
                 {
-                    // An object's TreeNodePointer must contain it, otherwise you're implementing TreeNodePointer wrong.
+                    // An object's NodePointer must contain it, otherwise you're implementing NodePointer wrong.
                     //node.ThrowOperationErrorException("delete", pObject);
                     Console.WriteLine("Warning: Performed a search-delete for an object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")");
                     SearchDelete(pObject);
@@ -345,9 +345,9 @@ namespace GameEngine
         // Deletes the object, and inserts it into the nearest parent which can fully contain it.
         public void Move (GameObject pObject, Vector2f newPos)
         {
-            if (this != pObject.TreeNodePointer)
+            if (this != pObject.NodePointer)
             {
-                pObject.TreeNodePointer.Move(pObject, newPos);
+                pObject.NodePointer.Move(pObject, newPos);
             }
             else
             {
@@ -528,9 +528,10 @@ namespace GameEngine
         }
 
         // Draws a box around the bounds of this nodes and all non-empty children, recursively.
-        public void RecursiveDraw()
+        public void RecursiveDraw(Vector2f posOffset)
         {
             // Draw the bounding box.
+            _boundingBox.Position = new Vector2f(_leftBound + posOffset.X, _topBound + posOffset.Y);
             Game.RenderWindow.Draw(_boundingBox);
 
             // Seeing the collision boxes gives other useful information.
@@ -539,10 +540,10 @@ namespace GameEngine
             // Draw the bounding boxes of the children unless this is a leaf node.
             if (!_isLeaf)
             {
-                _child1.RecursiveDraw();
-                _child2.RecursiveDraw();
-                _child3.RecursiveDraw();
-                _child4.RecursiveDraw();
+                _child1.RecursiveDraw(posOffset);
+                _child2.RecursiveDraw(posOffset);
+                _child3.RecursiveDraw(posOffset);
+                _child4.RecursiveDraw(posOffset);
             }
         }
 

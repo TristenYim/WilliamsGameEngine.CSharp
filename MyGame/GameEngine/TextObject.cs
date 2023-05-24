@@ -38,7 +38,7 @@ namespace GameEngine
             AssignTag("textObject");
         }
 
-        public override void Draw()
+        public override void Draw(Vector2f posOffset)
         {
             // Draws the text on screen
             Game.RenderWindow.Draw(_text);

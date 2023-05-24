@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using SFML.Graphics;
 using SFML.System;
+using SFML.Window;
 
 namespace GameEngine
 {
     // The Scene manages all the GameObjects currently in the game.
-    class Scene
+    abstract class Scene
     {
         // This holds our game objects.
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
@@ -23,6 +24,9 @@ namespace GameEngine
         {
             get => _camera;
         }
+
+        // Set to true 
+        protected bool _cullingEnabled;
 
         // Puts a GameObject into the scene.
         public void AddGameObject(GameObject gameObject)
@@ -50,7 +54,7 @@ namespace GameEngine
             UpdateGameObjects(time);
             RemoveDeadGameObjects();
             DrawGameObjects();
-            _positionalObjects.RecursiveDraw();
+            _positionalObjects.RecursiveDraw(new Vector2f(Camera.Left, Camera.Top));
 
             // Draw the window as updated by the game objects.
             Game.RenderWindow.Display();
@@ -59,7 +63,13 @@ namespace GameEngine
         // This method lets game objects respond to collisions.
         private void HandleCollisions()
         {
-            /*for (int i = 0; i < _gameObjects.Count; i++)
+            _positionalObjects.HandleCollisions();
+
+            // Fun fact: Before an AP student improved this engine as their final project, it used this old, inferior collision system!
+            // If you're making a really complicated game with lots of collision detection, try uncommenting this to see how slow it performs!
+            
+            /*
+            for (int i = 0; i < _gameObjects.Count; i++)
             {    
                 var gameObject = _gameObjects[i];
 
@@ -98,8 +108,8 @@ namespace GameEngine
                         (otherGameObject).HandleCollision(gameObject);
                     }
                 }
-            }*/
-            _positionalObjects.HandleCollisions();
+            }
+            */
         }
 
         // This function calls update on each of our game objects.
@@ -111,9 +121,28 @@ namespace GameEngine
         // This function calls draw on each of our game objects.
         private void DrawGameObjects()
         {
+            if (Keyboard.IsKeyPressed(Keyboard.Key.A))
+            {
+                Camera.Translate(new Vector2f(0, -2));
+            }
+            if (Keyboard.IsKeyPressed(Keyboard.Key.E))
+            {
+                Camera.Translate(new Vector2f(0, 2));
+            }
+
             foreach (var gameObject in _gameObjects) 
             {
-                gameObject.Draw();
+                float left = _camera.Left;
+                float top = _camera.Top;
+                float right = _camera.Right;
+                float bottom = _camera.Bottom;
+                /*if (gameObject.BelongsOnTree)
+                {
+                }
+                else
+                {*/
+                    gameObject.Draw(new Vector2f(left, top));
+                //}
             }
         }
 

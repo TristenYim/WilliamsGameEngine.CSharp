@@ -22,11 +22,11 @@ namespace GameEngine
         protected readonly HashSet<string> _tags = new HashSet<string>();
 
         // Points to the positional tree node it belongs in, if this belongs of the positional tree.
-        private PositionalTree _treeNodePointer;
-        public PositionalTree TreeNodePointer
+        private PositionalTree _nodePointer;
+        public PositionalTree NodePointer
         {
-            get => _treeNodePointer;
-            set => _treeNodePointer = value;
+            get => _nodePointer;
+            set => _nodePointer = value;
         }
 
         public bool IsCollidable
@@ -89,8 +89,8 @@ namespace GameEngine
         // Update is called every frame. Use this to prepare to draw (move, perform AI, etc.).
         public virtual void Update(Time elapsed) {}
 
-        // Draw is called every frame. Use this to draw stuff on screen.
-        public virtual void Draw() {}
+        // Draw is called every frame. Use this to draw stuff on screen, and make sure to account for the pos offset the camera provides.
+        public virtual void Draw(Vector2f posOffset) {}
 
         // This is called whenever something collides with this.
         public virtual void HandleCollision(GameObject otherGameObject) {}
