@@ -9,6 +9,8 @@ namespace MyGame
         private int _score;
         public GameScene()
         {
+            _cameraDebugMode = true;
+
             _positionalObjects = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
             _camera = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
 

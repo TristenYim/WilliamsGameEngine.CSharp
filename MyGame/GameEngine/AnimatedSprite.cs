@@ -137,7 +137,7 @@ namespace GameEngine
         }
 
         // Functions overridden from GameObject:
-        public override void Draw(Vector2f posOffset)
+        public override void Draw()
         {
             // Don't draw if we're not drawable.
             if (!IsDrawable()) return;

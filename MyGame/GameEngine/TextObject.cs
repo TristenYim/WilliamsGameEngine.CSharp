@@ -7,41 +7,30 @@ namespace GameEngine
     class TextObject : GameObject
     {
         
-        // The text we draw on screen.
-        private Text _text;
-        public Text Text
-        {
-            get => _text;
-            set => _text = value;
-        }
+        // The Text we draw on screen.
+        public Text Text { get; set; }
 
-        // Constructs the text with none of the text properties (DisplayedString, font, position) set.
+        // Constructs the Text with none of the Text properties (DisplayedString, Font, Position) set.
         public TextObject()
         {
-            _text = new Text();
-
-            // This tag can be used to easily tell if this is a text object
-            AssignTag("textObject");
+            Text = new Text();
         }
 
-        // Constructs the text with all of the text properties (DisplayedString, font, position) set.
+        // Constructs the Text with all of the text properties (DisplayedString, font, position) set.
         public TextObject(string text, Font font, uint charSize, Color color, Vector2f pos)
         {
-            _belongsOnTree = false;
-            _isCollidable = false;
+            BelongsOnTree = false;
+            IsCollidable = false;
             _isCollisionCheckEnabled = false;
 
-            _text = new Text(text, font, charSize);
-            _text.Position = pos;
-
-            // This tag can be used to easily tell if this is a text object
-            AssignTag("textObject");
+            Text = new Text(text, font, charSize);
+            Text.Position = pos;
         }
 
-        public override void Draw(Vector2f posOffset)
+        public override void Draw()
         {
-            // Draws the text on screen
-            Game.RenderWindow.Draw(_text);
+            // Draws the Text on screen.
+            Game.RenderWindow.Draw(Text);
         }
 
         public override void Update(Time elapsed) {}

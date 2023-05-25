@@ -8,27 +8,31 @@ namespace GameEngine
     // The Scene manages all the GameObjects currently in the game.
     abstract class Scene
     {
-        // This holds our game objects.
+        // This holds our GameObjects.
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
 
-        // This holds all objects that implement the positional interface. This is used to improve the speed of collision detection and object searching.
+        // This is a 2D space of GameObjects which can be (but does not have to be) bounded by the Window.
         protected PositionalTree _positionalObjects;
         public PositionalTree PositionalTree
         {
             get => _positionalObjects;
         }
 
-        // This is the camera which determines how much of the positionalTree should be drawn
+        // This determines how the objects in PostitionalTree should be offset and scaled to the screen.
         protected Camera _camera;
         public Camera Camera
         {
             get => _camera;
         }
 
-        // Set to true 
-        protected bool _cullingEnabled;
+        // Set to true to make WASD shift the Camera.
+        protected bool _cameraDebugMode = false;
 
-        // Puts a GameObject into the scene.
+        // TODO: Add culling
+        // Does not draw offscreen elements (except for bounding boxes drawn by PositionalTree) if true.
+        //protected bool _cullingEnabled = true;
+
+        // Puts a GameObject into the scene and the PositionalTree if appropriate.
         public void AddGameObject(GameObject gameObject)
         {
             // This adds the game object onto the back (the end) of the list of game objects.
@@ -47,7 +51,7 @@ namespace GameEngine
 
             // Go through our normal sequence of game loop stuff.
 
-            // Handle any keyboard, mouse events, etc. for our game window.
+            // Handle any Keyboard, Mouse events, etc. for our game Window.
             Game.RenderWindow.DispatchEvents();
 
             HandleCollisions();
@@ -56,11 +60,11 @@ namespace GameEngine
             DrawGameObjects();
             _positionalObjects.RecursiveDraw(new Vector2f(Camera.Left, Camera.Top));
 
-            // Draw the window as updated by the game objects.
+            // Draw the Window as updated by the GameObjects.
             Game.RenderWindow.Display();
         }
 
-        // This method lets game objects respond to collisions.
+        // This method lets Game objects respond to Collisions.
         private void HandleCollisions()
         {
             _positionalObjects.HandleCollisions();
@@ -112,41 +116,67 @@ namespace GameEngine
             */
         }
 
-        // This function calls update on each of our game objects.
+        // This method calls Update on each of our GameObjects.
         private void UpdateGameObjects(Time time)
         {
-            for (int i = 0; i < _gameObjects.Count; i++) _gameObjects[i].Update(time);
+            for (int i = 0; i < _gameObjects.Count; i++)
+            {
+                _gameObjects[i].Update(time);
+            }
+
+            // This is for Camera debug mode, which gives manual Camera controls which are useful for well... debugging.
+            if (_cameraDebugMode)
+            {
+                if (Keyboard.IsKeyPressed(Keyboard.Key.W))
+                {
+                    Camera.Translate(new Vector2f(0, 500 * time.AsSeconds()));
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.A))
+                {
+                    Camera.Translate(new Vector2f(500 * time.AsSeconds(), 0));
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.S))
+                {
+                    Camera.Translate(new Vector2f(0, -500 * time.AsSeconds()));
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.D))
+                {
+                    Camera.Translate(new Vector2f(-500 * time.AsSeconds(), 0));
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
+                {
+                    Camera.Dilate(1 + 0.5f * time.AsSeconds());
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.E))
+                {
+                    Camera.Dilate(1 - 0.5f * time.AsSeconds());
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.R))
+                {
+                    Camera.Dilate(1 / Camera.Scale.X);
+                    Camera.Translate(new Vector2f(-Camera.Left, -Camera.Top));
+                }
+            }
         }
 
-        // This function calls draw on each of our game objects.
+        // This method calls draw on each of our game objects.
         private void DrawGameObjects()
         {
-            if (Keyboard.IsKeyPressed(Keyboard.Key.A))
-            {
-                Camera.Translate(new Vector2f(0, -2));
-            }
-            if (Keyboard.IsKeyPressed(Keyboard.Key.E))
-            {
-                Camera.Translate(new Vector2f(0, 2));
-            }
-
             foreach (var gameObject in _gameObjects) 
             {
-                float left = _camera.Left;
-                float top = _camera.Top;
-                float right = _camera.Right;
-                float bottom = _camera.Bottom;
-                /*if (gameObject.BelongsOnTree)
-                {
-                }
-                else
-                {*/
-                    gameObject.Draw(new Vector2f(left, top));
-                //}
+                gameObject.Draw();
             }
         }
 
-        // This function removes objects that indicate they are dead from the scene.
+        // Sets the position of the Sprite based on its position on the Tree and the Camera. Call this in Draw if your Sprite is on the Tree.
+        public void UpdateCameraObject(Transformable transformable, Vector2f position)
+        {
+            float scaleFactor = _camera.Scale.X;
+            transformable.Position = new Vector2f((position.X + Camera.Left) * scaleFactor, (position.Y + Camera.Top) * scaleFactor);
+            transformable.Scale = _camera.Scale;
+        }
+
+        // This method removes GameObjects that indicate they are dead from the Scene.
         private void RemoveDeadGameObjects()
         {
             // Index game objects and remove them if they are dead.
