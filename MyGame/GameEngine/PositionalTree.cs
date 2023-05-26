@@ -568,10 +568,11 @@ namespace GameEngine
                 drawableRect.OutlineColor = SplittableObjectBorderColor;
 
                 FloatRect drawRect = cObject.GetCollisionRect();
-                float scaleFactor = cam.Scale.X;
+                Vector2f scaleFactors = cam.Scale;
 
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
-                drawableRect.Position = new Vector2f((drawRect.Left + BorderThickness + cam.Left) * scaleFactor, (drawRect.Top + BorderThickness + cam.Top) * scaleFactor);
+                Vector2f camPos = cam.Position;
+                drawableRect.Position = new Vector2f((drawRect.Left + BorderThickness + camPos.X) * scaleFactors.X, (drawRect.Top + BorderThickness + camPos.Y) * scaleFactors.Y);
                 
                 Game.RenderWindow.Draw(drawableRect);
             }
@@ -584,10 +585,12 @@ namespace GameEngine
                 drawableRect.OutlineColor = UnsplittableObjectBorderColor;
                 
                 FloatRect drawRect = cObject.GetCollisionRect();
-                float scaleFactor = cam.Scale.X;
+                Vector2f scaleFactors = cam.Scale;
 
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
-                drawableRect.Position = new Vector2f((drawRect.Left + BorderThickness + cam.Left) * scaleFactor, (drawRect.Top + BorderThickness + cam.Top) * scaleFactor);
+                Vector2f camPos = cam.Position;
+                drawableRect.Position = new Vector2f((drawRect.Left + BorderThickness + camPos.X) * scaleFactors.X,
+                                                     (drawRect.Top + BorderThickness + camPos.Y) * scaleFactors.Y);
                 
                 Game.RenderWindow.Draw(drawableRect);
             }

@@ -35,10 +35,10 @@ namespace GameEngine
             _timer.Update(elapsed);
             _totalFrames++;
             decimal fps = (decimal)_totalFrames / (decimal)_timer.Time * 1000;
-            if (_timer.surpassedTarget())
+            if (_timer.SurpassedTarget)
             {
                 Text.DisplayedString = "FPS: " + decimal.Round(fps, 1);
-                _timer.reset();
+                _timer.Reset();
                 _totalFrames = 0;
             }
         }

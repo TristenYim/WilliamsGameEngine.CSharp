@@ -5,14 +5,13 @@ namespace MyGame
 {
     class GameScene : Scene
     {
-        private int _lives = 3;
-        private int _score;
         public GameScene()
         {
             _cameraDebugMode = true;
+            _treeDebugMode = true;
 
-            _positionalObjects = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
-            _camera = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
+            PositionalTree = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
+            Camera = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
 
             Ship ship = new Ship();
             AddGameObject(ship);

@@ -38,7 +38,7 @@ namespace GameEngine
         }
 
         // This is the GameObject's 2D position on the PositionalTree.
-        public virtual Vector2f Position { get; set; }
+        public Vector2f Position { get; set; }
 
         // Points to the PositionalTree node it belongs in, if this belongs in the PositionalTree.
         public PositionalTree NodePointer { get; set; }

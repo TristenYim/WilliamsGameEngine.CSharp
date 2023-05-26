@@ -35,52 +35,50 @@ namespace GameEngine {
             _time += elapsed.AsMicroseconds() / 1000f;
             if (_autoReset)
             {
-                subResetIfSurpassed();
+                SubResetIfSurpassed();
             }
         }
 
-        // Returns true if _time has surpassed _targetTime.
-        public bool surpassedTarget() {
-            return _time >= _targetTime;
-        }
+        // True if _time has surpassed _targetTime.
+        public bool SurpassedTarget { get => _time >= _targetTime; }
 
         // Checks if the _time has surpassed _targetTime. If true, it resets and returns it. Otherwise false is returned.
-        public bool resetIfSurpassed()
+        public bool ResetIfSurpassed()
         {
-            if (surpassedTarget())
+            if (SurpassedTarget)
             {
-                reset();
+                Reset();
                 return true;
             }
             return false;
         }
 
         // Does the same thing as resetIfSurpassed, except it calls subReset and not reset.
-        public bool subResetIfSurpassed()
+        public bool SubResetIfSurpassed()
         {
-            if (surpassedTarget())
+            if (SurpassedTarget)
             {
-                subReset();
+                SubReset();
                 return true;
             }
             return false;
         }
 
-        // Resets the _time to 0 and triggers the reset action.
-        public void reset()
+        // Resets the _time to 0 and calls ResetAction.
+        public void Reset()
         {
             _time = 0f;
-            resetAction();
+            ResetAction();
         }
 
         // Subracts the _targetTime instead of setting _time to 0. Generally improves timer consistency vs forceReset.
-        public void subReset()
+        public void SubReset()
         {
             _time -= _targetTime;
-            resetAction();
+            ResetAction();
         }
 
         // Override to make Timer do something else on reset.
-        public virtual void resetAction() {}
+        public virtual void ResetAction() {}
     }
 }

@@ -12,21 +12,27 @@ namespace GameEngine
         private readonly List<GameObject> _gameObjects = new List<GameObject>();
 
         // This is a 2D space of GameObjects which can be (but does not have to be) bounded by the Window.
-        protected PositionalTree _positionalObjects;
-        public PositionalTree PositionalTree
-        {
-            get => _positionalObjects;
-        }
+        public PositionalTree PositionalTree { get; protected set; }
+
+        // Enabling will draw boxes around used PostitionalTree nodes (and the collision boxes of objects inside).
+        // This can be useful for troubleshooting broken collision detection or visualizing how PositionalTree is optimtizing your game.
+        // PLEASE NOTE: Enabling this will greatly reduce framerate due to the amount of extra things being drawn on screen!
+        protected bool _treeDebugMode = false;
 
         // This determines how the objects in PostitionalTree should be offset and scaled to the screen.
-        protected Camera _camera;
-        public Camera Camera
-        {
-            get => _camera;
-        }
+        public Camera Camera { get; protected set; }
 
         // Set to true to make WASD shift the Camera.
         protected bool _cameraDebugMode = false;
+
+        // These are the keybinds for the Camera debug movements.
+        protected Keyboard.Key _cameraDebugForwardKey = Keyboard.Key.W;
+        protected Keyboard.Key _cameraDebugLeftKey = Keyboard.Key.A;
+        protected Keyboard.Key _cameraDebugBackwardKey = Keyboard.Key.S;
+        protected Keyboard.Key _cameraDebugRightKey = Keyboard.Key.D;
+        protected Keyboard.Key _cameraDebugZoomInKey = Keyboard.Key.Q;
+        protected Keyboard.Key _cameraDebugZoomOutKey = Keyboard.Key.E;
+        protected Keyboard.Key _cameraDebugResetKey = Keyboard.Key.R;
 
         // TODO: Add culling
         // Does not draw offscreen elements (except for bounding boxes drawn by PositionalTree) if true.
@@ -39,10 +45,10 @@ namespace GameEngine
             _gameObjects.Add(gameObject);
             if (gameObject.BelongsOnTree)
             {
-                _positionalObjects.Insert(gameObject);
+                PositionalTree.Insert(gameObject);
             }
         }
-        
+
         // Called by the Game instance once per frame.
         public void Update(Time time)
         {
@@ -58,7 +64,6 @@ namespace GameEngine
             UpdateGameObjects(time);
             RemoveDeadGameObjects();
             DrawGameObjects();
-            _positionalObjects.RecursiveDraw(new Vector2f(Camera.Left, Camera.Top));
 
             // Draw the Window as updated by the GameObjects.
             Game.RenderWindow.Display();
@@ -67,14 +72,14 @@ namespace GameEngine
         // This method lets Game objects respond to Collisions.
         private void HandleCollisions()
         {
-            _positionalObjects.HandleCollisions();
+            PositionalTree.HandleCollisions();
 
             // Fun fact: Before an AP student improved this engine as their final project, it used this old, inferior collision system!
             // If you're making a really complicated game with lots of collision detection, try uncommenting this to see how slow it performs!
-            
+
             /*
             for (int i = 0; i < _gameObjects.Count; i++)
-            {    
+            {
                 var gameObject = _gameObjects[i];
 
                 if (!gameObject.IsCollidable)
@@ -127,53 +132,41 @@ namespace GameEngine
             // This is for Camera debug mode, which gives manual Camera controls which are useful for well... debugging.
             if (_cameraDebugMode)
             {
-                if (Keyboard.IsKeyPressed(Keyboard.Key.W))
+                if (Keyboard.IsKeyPressed(_cameraDebugForwardKey))
                 {
                     Camera.Translate(new Vector2f(0, 500 * time.AsSeconds()));
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.A))
+                if (Keyboard.IsKeyPressed(_cameraDebugLeftKey))
                 {
                     Camera.Translate(new Vector2f(500 * time.AsSeconds(), 0));
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.S))
+                if (Keyboard.IsKeyPressed(_cameraDebugBackwardKey))
                 {
                     Camera.Translate(new Vector2f(0, -500 * time.AsSeconds()));
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.D))
+                if (Keyboard.IsKeyPressed(_cameraDebugRightKey))
                 {
                     Camera.Translate(new Vector2f(-500 * time.AsSeconds(), 0));
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
+                if (Keyboard.IsKeyPressed(_cameraDebugZoomInKey))
                 {
-                    Camera.Dilate(1 + 0.5f * time.AsSeconds());
+                    Vector2f scale = Camera.Scale;
+                    scale *= 1 + 0.5f * time.AsSeconds();
+                    Camera.Scale = scale;
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.E))
+                if (Keyboard.IsKeyPressed(_cameraDebugZoomOutKey))
                 {
-                    Camera.Dilate(1 - 0.5f * time.AsSeconds());
+                    Vector2f scale = Camera.Scale;
+                    scale /= 1 + 0.5f * time.AsSeconds();
+                    Camera.Scale = scale;
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.R))
+                if (Keyboard.IsKeyPressed(_cameraDebugResetKey))
                 {
-                    Camera.Dilate(1 / Camera.Scale.X);
-                    Camera.Translate(new Vector2f(-Camera.Left, -Camera.Top));
+                    Camera.Scale = new Vector2f(1f, 1f);
+                    Vector2f camPos = Camera.Position;
+                    Camera.Translate(new Vector2f(-camPos.X, -camPos.Y));
                 }
             }
-        }
-
-        // This method calls draw on each of our game objects.
-        private void DrawGameObjects()
-        {
-            foreach (var gameObject in _gameObjects) 
-            {
-                gameObject.Draw();
-            }
-        }
-
-        // Sets the position of the Sprite based on its position on the Tree and the Camera. Call this in Draw if your Sprite is on the Tree.
-        public void UpdateCameraObject(Transformable transformable, Vector2f position)
-        {
-            float scaleFactor = _camera.Scale.X;
-            transformable.Position = new Vector2f((position.X + Camera.Left) * scaleFactor, (position.Y + Camera.Top) * scaleFactor);
-            transformable.Scale = _camera.Scale;
         }
 
         // This method removes GameObjects that indicate they are dead from the Scene.
@@ -187,12 +180,58 @@ namespace GameEngine
                 {
                     if (gameObject.BelongsOnTree)
                     {
-                        // Delete it from the tree if it should be on the tree.
-                        _positionalObjects.Delete(gameObject);
+                        // Delete it from the PositionalTree if it may be on the it.
+                        PositionalTree.Delete(gameObject);
                     }
                     _gameObjects.RemoveAt(i);
                 }
             }
+        }
+
+        // This method calls draw on each of our game objects.
+        private void DrawGameObjects()
+        {
+            foreach (var gameObject in _gameObjects)
+            {
+                gameObject.Draw();
+            }
+
+            // Debug information in RecursiveDraw will draw over all gameObjects.
+            if (_treeDebugMode)
+            {
+                PositionalTree.RecursiveDraw(Camera.Position);
+            }
+
+            // The bezels hide extra information if the player resizes the window to prevent them from gaining an unfair advantage.
+            RectangleShape xBezel = Game.XBezel;
+            RectangleShape yBezel = Game.YBezel;
+            if (xBezel.Size != Game.NullSize)
+            {
+                float width = xBezel.Size.X;
+                xBezel.Position = new Vector2f(-width, 0);
+                Game.RenderWindow.Draw(xBezel);
+                xBezel.Position = new Vector2f(width, 0);
+                Game.RenderWindow.Draw(xBezel);
+            }
+            if (yBezel.Size != Game.NullSize)
+            {
+                float height = yBezel.Size.Y;
+                yBezel.Position = new Vector2f(0, -height);
+                Game.RenderWindow.Draw(yBezel);
+                yBezel.Position = new Vector2f(0, Camera.Height);
+                Game.RenderWindow.Draw(yBezel);
+            }
+        }
+
+        // Modify the Sprite based on its absolute position (In PositionalTree) and the modifiers in Camera.
+        public void UpdateCameraObject(Transformable transformable, Vector2f position)
+        {
+            Vector2f camScale = Camera.Scale;
+            Vector2f newPosition = Camera.Position + position;
+            newPosition.X *= camScale.X;
+            newPosition.Y *= camScale.Y;
+            transformable.Position = newPosition;
+            transformable.Scale = Camera.Scale;
         }
     }
 }
