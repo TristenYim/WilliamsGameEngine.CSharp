@@ -15,10 +15,7 @@ namespace GameEngine
         //private const int FramesPerSecond = 60;
 
         // Set to true if you want the game to display the fps.
-        private const bool ShowFPS = true;
-        public static bool FPSShowing {
-            get { return ShowFPS; }
-        }
+        public static bool FPSShowing { get; private set; }
 
         // We keep a current and next scene so the scene can be changed mid-frame.
         private static Scene _currentScene;
@@ -37,7 +34,7 @@ namespace GameEngine
         private static RenderWindow _window;
 
         // These are for storing window settings when switching between fullscreen and default style.
-        private static VideoMode _videoMode;
+        public static VideoMode VideoMode { get; private set; }
         private static string _title;
         private static Styles _style;
         public static bool IsFullscreen { get; private set; }
@@ -59,17 +56,20 @@ namespace GameEngine
         public static Random Random = new Random(42);
 
         // Creates our render window. Must be called once at startup.
-        public static void Initialize(uint windowWidth, uint windowHeight, string windowTitle, Styles windowStyle, Color bezelColor, Keyboard.Key fullscrenKey, Keyboard.Key closeKey)
+        public static void Initialize(uint windowWidth, uint windowHeight, string windowTitle, bool showFps, Styles windowStyle, Color bezelColor, Keyboard.Key fullscrenKey, Keyboard.Key closeKey)
         {
             // Only initialize once.
             if (_initialized) return;
             _initialized = true;
 
+            // Set fpsShowing
+            FPSShowing = showFps;
+
             // Create the render window.
-            _videoMode = new VideoMode(windowWidth, windowHeight);
+            VideoMode = new VideoMode(windowWidth, windowHeight);
             _title = windowTitle;
             _style = windowStyle;
-            _window = new RenderWindow(_videoMode, windowTitle, windowStyle);
+            _window = new RenderWindow(VideoMode, windowTitle, windowStyle);
             IsFullscreen = false;
             _window.SetFramerateLimit(FramesPerSecond);
 
@@ -111,7 +111,7 @@ namespace GameEngine
             IsFullscreen = true;
 
             Vector2u fullScreenSize = new Vector2u(VideoMode.DesktopMode.Width, VideoMode.DesktopMode.Height);
-            RenderWindow newWindow = new RenderWindow(_videoMode, _title, Styles.None, _window.Settings);
+            RenderWindow newWindow = new RenderWindow(VideoMode, _title, Styles.None, _window.Settings);
             newWindow.Position = new Vector2i(0, 0);
             _window.Close();
             _window = newWindow;
@@ -120,7 +120,7 @@ namespace GameEngine
         public static void UnFullscreen()
         {
             IsFullscreen = false;
-            RenderWindow newWindow = new RenderWindow(_videoMode, _title, _style);
+            RenderWindow newWindow = new RenderWindow(VideoMode, _title, _style);
             _window.Close();
             _window = newWindow;
         }
@@ -178,7 +178,7 @@ namespace GameEngine
                 _currentScene = scene;
 
                 // If we set showFPS to true, add an fps Object to the new scene.
-                if (ShowFPS) { _currentScene.AddGameObject(new FPSDisplay()); }
+                if (FPSShowing) { _currentScene.AddGameObject(new FPSDisplay()); }
             }
             else
             {

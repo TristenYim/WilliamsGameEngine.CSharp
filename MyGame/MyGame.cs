@@ -14,7 +14,7 @@ namespace MyGame
         private static void Main(string[] args)
         {
             // Initialize the game.
-            Game.Initialize(WindowWidth, WindowHeight, WindowTitle, Styles.Default, Color.Black, Keyboard.Key.F11, Keyboard.Key.Delete);
+            Game.Initialize(WindowWidth, WindowHeight, WindowTitle, true, Styles.Default, Color.Black, Keyboard.Key.F11, Keyboard.Key.Delete);
 
             // Create our scene.
             GameScene scene = new GameScene();

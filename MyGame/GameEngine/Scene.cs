@@ -20,6 +20,7 @@ namespace GameEngine
         protected bool _treeDebugMode = false;
 
         // This determines how the objects in PostitionalTree should be offset and scaled to the screen.
+        // TODO: Make this an array or list of queues to allow for drawing multiple perspectives on screen.
         public Camera Camera { get; protected set; }
 
         // Set to true to make WASD shift the Camera.
@@ -220,9 +221,15 @@ namespace GameEngine
             }
             Game.RenderWindow.SetView(Camera.View);
 
-            foreach (var gameObject in _gameObjects)
+            /*foreach (var gameObject in _gameObjects)
             {
                 gameObject.Draw();
+            }*/
+
+            Queue<GameObject> drawQueue = Camera.DrawQueue;
+            while (drawQueue.TryDequeue(out var toDraw))
+            {
+                toDraw.Draw();
             }
 
             // Debug information in RecursiveDraw will draw over all gameObjects.

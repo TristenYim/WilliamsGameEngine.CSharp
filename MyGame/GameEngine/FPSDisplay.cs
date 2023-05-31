@@ -41,6 +41,8 @@ namespace GameEngine
                 _timer.Reset();
                 _totalFrames = 0;
             }
+            
+            Game.CurrentScene.Camera.DrawQueue.Enqueue(this);
         }
     }
 }

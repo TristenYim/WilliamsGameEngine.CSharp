@@ -33,6 +33,9 @@ namespace GameEngine
             Game.RenderWindow.Draw(Text);
         }
 
-        public override void Update(Time elapsed) {}
+        public override void Update(Time elapsed) 
+        {
+            Game.CurrentScene.Camera.DrawQueue.Enqueue(this);
+        }
     }
 }
