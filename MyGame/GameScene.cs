@@ -8,7 +8,7 @@ namespace MyGame
         public GameScene()
         {
             _cameraDebugMode = true;
-            _treeDebugMode = true;
+            _treeDebugMode = false;
 
             PositionalTree = new PositionalTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
             Camera = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));

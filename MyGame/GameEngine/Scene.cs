@@ -26,12 +26,14 @@ namespace GameEngine
         protected bool _cameraDebugMode = false;
 
         // These are the keybinds for the Camera debug movements.
-        protected Keyboard.Key _cameraDebugForwardKey = Keyboard.Key.W;
+        protected Keyboard.Key _cameraDebugUpKey = Keyboard.Key.W;
         protected Keyboard.Key _cameraDebugLeftKey = Keyboard.Key.A;
-        protected Keyboard.Key _cameraDebugBackwardKey = Keyboard.Key.S;
+        protected Keyboard.Key _cameraDebugDownKey = Keyboard.Key.S;
         protected Keyboard.Key _cameraDebugRightKey = Keyboard.Key.D;
-        protected Keyboard.Key _cameraDebugZoomInKey = Keyboard.Key.Q;
-        protected Keyboard.Key _cameraDebugZoomOutKey = Keyboard.Key.E;
+        protected Keyboard.Key _cameraDebugClockwiseKey = Keyboard.Key.E;
+        protected Keyboard.Key _cameraDebugCounterclockwiseKey = Keyboard.Key.Q;
+        protected Keyboard.Key _cameraDebugZoomInKey = Keyboard.Key.C;
+        protected Keyboard.Key _cameraDebugZoomOutKey = Keyboard.Key.X;
         protected Keyboard.Key _cameraDebugResetKey = Keyboard.Key.R;
 
         // TODO: Add culling
@@ -132,39 +134,56 @@ namespace GameEngine
             // This is for Camera debug mode, which gives manual Camera controls which are useful for well... debugging.
             if (_cameraDebugMode)
             {
-                if (Keyboard.IsKeyPressed(_cameraDebugForwardKey))
-                {
-                    Camera.Translate(new Vector2f(0, 500 * time.AsSeconds()));
-                }
-                if (Keyboard.IsKeyPressed(_cameraDebugLeftKey))
-                {
-                    Camera.Translate(new Vector2f(500 * time.AsSeconds(), 0));
-                }
-                if (Keyboard.IsKeyPressed(_cameraDebugBackwardKey))
-                {
-                    Camera.Translate(new Vector2f(0, -500 * time.AsSeconds()));
-                }
-                if (Keyboard.IsKeyPressed(_cameraDebugRightKey))
-                {
-                    Camera.Translate(new Vector2f(-500 * time.AsSeconds(), 0));
-                }
-                if (Keyboard.IsKeyPressed(_cameraDebugZoomInKey))
-                {
-                    Vector2f scale = Camera.Scale;
-                    scale *= 1 + 0.5f * time.AsSeconds();
-                    Camera.Scale = scale;
-                }
-                if (Keyboard.IsKeyPressed(_cameraDebugZoomOutKey))
-                {
-                    Vector2f scale = Camera.Scale;
-                    scale /= 1 + 0.5f * time.AsSeconds();
-                    Camera.Scale = scale;
-                }
+                View camView = Camera.View;
+                Vector2f camSize = camView.Size;
+                float camXOffset = camSize.X * 0.75f * time.AsSeconds();
+                float camYOffset = camSize.Y * 0.75f * time.AsSeconds();
+                Vector2f posDelta = new Vector2f();
+                float rotationDelta = 0f;
+                float zoomFactor = 1f;
+
                 if (Keyboard.IsKeyPressed(_cameraDebugResetKey))
                 {
-                    Camera.Scale = new Vector2f(1f, 1f);
-                    Vector2f camPos = Camera.Position;
-                    Camera.Translate(new Vector2f(-camPos.X, -camPos.Y));
+                    //camView.Reset(Camera.OriginalView);
+                }
+                else
+                {
+                    if (Keyboard.IsKeyPressed(_cameraDebugUpKey))
+                    {
+                        posDelta.Y -= camYOffset;
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugLeftKey))
+                    {
+                        posDelta.X -= camXOffset;
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugDownKey))
+                    {
+                        posDelta.Y += camYOffset;
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugRightKey))
+                    {
+                        posDelta.X += camXOffset;
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugClockwiseKey))
+                    {
+                        rotationDelta += 60 * time.AsSeconds();
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugCounterclockwiseKey))
+                    {
+                        rotationDelta -= 60 * time.AsSeconds();
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugZoomInKey))
+                    {
+                        zoomFactor -= 0.5f * time.AsSeconds();
+                    }
+                    if (Keyboard.IsKeyPressed(_cameraDebugZoomOutKey))
+                    {
+                        zoomFactor += 0.5f * time.AsSeconds();
+                    }
+
+                    camView.Move(posDelta);
+                    camView.Rotate(rotationDelta);
+                    camView.Zoom(zoomFactor);
                 }
             }
         }
@@ -191,6 +210,16 @@ namespace GameEngine
         // This method calls draw on each of our game objects.
         private void DrawGameObjects()
         {
+            if (!Game.IsFullscreen)
+            {
+                Camera.View.Viewport = Camera.StdViewport;
+            }
+            else
+            {
+                Camera.View.Viewport = Camera.FullScreenViewport;
+            }
+            Game.RenderWindow.SetView(Camera.View);
+
             foreach (var gameObject in _gameObjects)
             {
                 gameObject.Draw();
@@ -199,39 +228,8 @@ namespace GameEngine
             // Debug information in RecursiveDraw will draw over all gameObjects.
             if (_treeDebugMode)
             {
-                PositionalTree.RecursiveDraw(Camera.Position);
+                PositionalTree.Draw();
             }
-
-            // The bezels hide extra information if the player resizes the window to prevent them from gaining an unfair advantage.
-            RectangleShape xBezel = Game.XBezel;
-            RectangleShape yBezel = Game.YBezel;
-            if (xBezel.Size != Game.NullSize)
-            {
-                float width = xBezel.Size.X;
-                xBezel.Position = new Vector2f(-width, 0);
-                Game.RenderWindow.Draw(xBezel);
-                xBezel.Position = new Vector2f(width, 0);
-                Game.RenderWindow.Draw(xBezel);
-            }
-            if (yBezel.Size != Game.NullSize)
-            {
-                float height = yBezel.Size.Y;
-                yBezel.Position = new Vector2f(0, -height);
-                Game.RenderWindow.Draw(yBezel);
-                yBezel.Position = new Vector2f(0, Camera.Height);
-                Game.RenderWindow.Draw(yBezel);
-            }
-        }
-
-        // Modify the Sprite based on its absolute position (In PositionalTree) and the modifiers in Camera.
-        public void UpdateCameraObject(Transformable transformable, Vector2f position)
-        {
-            Vector2f camScale = Camera.Scale;
-            Vector2f newPosition = Camera.Position + position;
-            newPosition.X *= camScale.X;
-            newPosition.Y *= camScale.Y;
-            transformable.Position = newPosition;
-            transformable.Scale = Camera.Scale;
         }
     }
 }

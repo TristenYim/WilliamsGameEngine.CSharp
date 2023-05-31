@@ -39,9 +39,8 @@ namespace GameEngine
         // These are for storing window settings when switching between fullscreen and default style.
         private static VideoMode _videoMode;
         private static string _title;
-        private static View _previousView;
         private static Styles _style;
-        private static bool _isFullscreen;
+        public static bool IsFullscreen { get; private set; }
 
         // These are for the fullscreen and force close keybinds
         private static bool _fullscreenKeyHeld;
@@ -49,14 +48,7 @@ namespace GameEngine
         private static Keyboard.Key _fullscreenKey;
 
         // @TODO: Add more keyboard information (Whether each key is held, how long it's been held for, etc.)
-        private static Timer _forceCloseTimer = new Timer(3000, false);
-
-        // These bezels will be drawn around the window to prevent players from getting an unfair advantage by resizing the window.
-        public static RectangleShape XBezel { get; set; }
-        public static RectangleShape YBezel { get; set; }
-
-        // This is used purely for resetting the size of old bezels.
-        public static Vector2f NullSize { get; private set; }
+        private static Timer _forceCloseTimer = new Timer(1000, false);
 
         // A flag to prevent being initialized twice.
         private static bool _initialized;
@@ -78,15 +70,8 @@ namespace GameEngine
             _title = windowTitle;
             _style = windowStyle;
             _window = new RenderWindow(_videoMode, windowTitle, windowStyle);
-            _isFullscreen = false;
+            IsFullscreen = false;
             _window.SetFramerateLimit(FramesPerSecond);
-
-            // Set the fill color of the window bezels (Bezels are automatically added when the window is resized).
-            XBezel = new RectangleShape();
-            YBezel = new RectangleShape();
-            XBezel.FillColor = bezelColor;
-            YBezel.FillColor = bezelColor;
-            NullSize = new Vector2f(0, 0);
 
             // Set the closeKey and fullscreen key
             _closeKey = closeKey;
@@ -112,7 +97,7 @@ namespace GameEngine
         // These set the fullscreen state of the window (and correct for SFML stretching).
         public static void ToggleFullScreen()
         {
-            if (_isFullscreen)
+            if (IsFullscreen)
             {
                 UnFullscreen();
             }
@@ -123,72 +108,18 @@ namespace GameEngine
         }
         public static void MakeFullscreen()
         {
-            _isFullscreen = true;
-            _previousView = _window.GetView();
+            IsFullscreen = true;
 
-            // These variables determine if the engine needs to do stretch compensation (and how much it needs to compensate by).
             Vector2u fullScreenSize = new Vector2u(VideoMode.DesktopMode.Width, VideoMode.DesktopMode.Height);
-            Vector2u prevSize = _window.Size;
-            uint prevXSize = prevSize.X;
-            uint prevYSize = prevSize.Y;
-            float scaleXFactor = fullScreenSize.X / (float)prevXSize;
-            float scaleYFactor = fullScreenSize.Y / (float)prevYSize;
-
-            if (scaleXFactor == scaleYFactor)
-            {
-                // If the aspect ratio does not change, no need to compensate for SFML stretching.
-                RenderWindow newWindow = new RenderWindow(_videoMode, _title, Styles.None, _window.Settings);
-                newWindow.Position = new Vector2i(0, 0);
-                _window.Close();
-                _window = newWindow;
-                _window.Size = fullScreenSize;
-
-                // Reset the size of the bezels.
-                XBezel.Size = new Vector2f();
-                YBezel.Size = new Vector2f();
-            }
-            else if (scaleXFactor > scaleYFactor)
-            {
-                // If the aspect ratio changes such that y will be stretched, we need to stretch x by the same amount to correct for it.
-                float stretchFactor = scaleXFactor / scaleYFactor;
-                View gameView = _window.GetView();
-                gameView.Size = new Vector2f(prevXSize * stretchFactor, prevYSize);
-
-                // Close the window and reopen it in fullscreen.
-                RenderWindow newWindow = new RenderWindow(_videoMode, _title, Styles.None, _window.Settings);
-                newWindow.Position = new Vector2i(0, 0);
-                _window.Close();
-                _window = newWindow;
-                _window.Size = fullScreenSize;
-                _window.SetView(gameView);
-
-                // Set the size of the bezel and reset the size of the old bezel.
-                XBezel.Size = new Vector2f(prevXSize /** (stretchFactor - 1f)*/, prevYSize);
-                YBezel.Size = NullSize;
-            }
-            else
-            {
-                // If the aspect ratio changes such that x will be stretched, we need to stretch y by the same amount to correct for it.
-                float stretchFactor = scaleYFactor / scaleXFactor;
-                View gameView = _window.GetView();
-                gameView.Size = new Vector2f(prevXSize, prevYSize * stretchFactor);
-                
-                // Close the window and reopen it in fullscreen.
-                RenderWindow newWindow = new RenderWindow(_videoMode, _title, Styles.None, _window.Settings);
-                newWindow.Position = new Vector2i(0, 0);
-                _window.Close();
-                _window = newWindow;
-                _window.Size = fullScreenSize;
-                _window.SetView(gameView);
-
-                // Set the size of the bezel and reset the size of the old bezel.
-                YBezel.Size = new Vector2f(prevXSize, prevYSize /** (stretchFactor - 1f)*/);
-                XBezel.Size = NullSize;
-            }
+            RenderWindow newWindow = new RenderWindow(_videoMode, _title, Styles.None, _window.Settings);
+            newWindow.Position = new Vector2i(0, 0);
+            _window.Close();
+            _window = newWindow;
+            _window.Size = fullScreenSize;
         }
         public static void UnFullscreen()
         {
-            _isFullscreen = false;
+            IsFullscreen = false;
             RenderWindow newWindow = new RenderWindow(_videoMode, _title, _style);
             _window.Close();
             _window = newWindow;

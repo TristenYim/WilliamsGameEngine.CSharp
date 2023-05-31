@@ -92,10 +92,10 @@ namespace GameEngine
 
             // Set the drawable bounding box.
             _boundingBox = new RectangleShape(new Vector2f(width - 2 * BorderThickness, height - 2 * BorderThickness));
+            _boundingBox.Position = new Vector2f(_leftBound + BorderThickness, _topBound + BorderThickness);
             _boundingBox.OutlineThickness = BorderThickness;
             _boundingBox.OutlineColor = TreeBorderColor;
             _boundingBox.FillColor = Color.Transparent;
-            _boundingBox.Origin = new Vector2f(0, 0);
             _isLeaf = true;
         }
 
@@ -528,10 +528,9 @@ namespace GameEngine
         }
 
         // Draws a box around the bounds of this nodes and all non-empty children, recursively.
-        public void RecursiveDraw(Vector2f posOffset)
+        public void Draw()
         {
             // Draw the bounding box.
-            Game.CurrentScene.UpdateCameraObject(_boundingBox, new Vector2f(_leftBound + BorderThickness, _topBound + BorderThickness));
             Game.RenderWindow.Draw(_boundingBox);
 
             // Seeing the collision boxes gives other useful information.
@@ -540,10 +539,10 @@ namespace GameEngine
             // Draw the bounding boxes of the children unless this is a leaf node.
             if (!_isLeaf)
             {
-                _child1.RecursiveDraw(posOffset);
-                _child2.RecursiveDraw(posOffset);
-                _child3.RecursiveDraw(posOffset);
-                _child4.RecursiveDraw(posOffset);
+                _child1.Draw();
+                _child2.Draw();
+                _child3.Draw();
+                _child4.Draw();
             }
         }
 
@@ -556,7 +555,6 @@ namespace GameEngine
             RectangleShape drawableRect = new RectangleShape();
             drawableRect.OutlineThickness = BorderThickness;
             drawableRect.FillColor = Color.Transparent;
-            drawableRect.Scale = cam.Scale;
 
             // Setup and Draw the rectangle for each splittable and unsplittable GameObject
             foreach (var cObject in _splittableObjects)
@@ -568,11 +566,9 @@ namespace GameEngine
                 drawableRect.OutlineColor = SplittableObjectBorderColor;
 
                 FloatRect drawRect = cObject.GetCollisionRect();
-                Vector2f scaleFactors = cam.Scale;
 
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
-                Vector2f camPos = cam.Position;
-                drawableRect.Position = new Vector2f((drawRect.Left + BorderThickness + camPos.X) * scaleFactors.X, (drawRect.Top + BorderThickness + camPos.Y) * scaleFactors.Y);
+                drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
                 
                 Game.RenderWindow.Draw(drawableRect);
             }
@@ -585,12 +581,8 @@ namespace GameEngine
                 drawableRect.OutlineColor = UnsplittableObjectBorderColor;
                 
                 FloatRect drawRect = cObject.GetCollisionRect();
-                Vector2f scaleFactors = cam.Scale;
-
                 drawableRect.Size = new Vector2f(drawRect.Width - 2 * BorderThickness, drawRect.Height - 2 * BorderThickness);
-                Vector2f camPos = cam.Position;
-                drawableRect.Position = new Vector2f((drawRect.Left + BorderThickness + camPos.X) * scaleFactors.X,
-                                                     (drawRect.Top + BorderThickness + camPos.Y) * scaleFactors.Y);
+                drawableRect.Position = new Vector2f(drawRect.Left + BorderThickness, drawRect.Top + BorderThickness);
                 
                 Game.RenderWindow.Draw(drawableRect);
             }
