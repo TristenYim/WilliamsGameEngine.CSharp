@@ -10,27 +10,57 @@ namespace GameEngine
         // This is the internal standard View the camera controls.
         public readonly View View;
 
-        // This is the fullscreen ViewPort
+        // This is the standard ViewPort
         public FloatRect StdViewport { get; private set; }
+
+        // This is the fullscreen ViewPort
         public FloatRect FullScreenViewport { get; private set; }
 
-        // This is the Queue of objects to draw
+        // The original bounds are stored to allow Camera to internally reset the View.
+        private FloatRect _originalBounds;
+
+        // This is the Queue of objects to draw.
+        // A Queue is a bit like a list, except you can only add items to the back, and can only look at or take off items on the front.
         // TODO: Make this an array or list of Queues to allow for render layers.
         public Queue<GameObject> DrawQueue { get; }
 
         // This constructs the bounds of the Camera.
         public Camera(FloatRect bounds)
         {
+            _originalBounds = bounds;
+            
             View = new View(bounds);
             StdViewport = View.Viewport;
-            
             GenerateFullscreenViewport();
-            System.Console.WriteLine(bounds.ToString() + StdViewport.ToString() + FullScreenViewport.ToString());
 
             DrawQueue = new Queue<GameObject>();
         }
 
-        // Can only be called if isFull
+        public void Draw()
+        {
+            if (!Game.IsFullscreen)
+            {
+                View.Viewport = StdViewport;
+            }
+            else
+            {
+                View.Viewport = FullScreenViewport;
+            }
+            Game.RenderWindow.SetView(View);
+
+            while (DrawQueue.TryDequeue(out var toDraw))
+            {
+                toDraw.Draw();
+            }
+        }
+
+        // Resets the View to its original state when Camera was instantiated.
+        public void Reset()
+        {
+            View.Reset(_originalBounds);
+        }
+
+        // Only call if IsFullscreen is disabled in Game.
         public void GenerateFullscreenViewport()
         {
             Vector2f fullScreenSize = new Vector2f(VideoMode.DesktopMode.Width, VideoMode.DesktopMode.Height);

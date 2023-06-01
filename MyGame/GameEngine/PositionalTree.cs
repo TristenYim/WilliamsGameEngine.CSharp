@@ -9,10 +9,10 @@ namespace GameEngine
     class PositionalTree
     {
         // Represents all collidable objects that cannot be fully contained in any of the child nodes.
-        private List<GameObject> _unsplittableObjects = new List<GameObject>();
+        private readonly List<GameObject> _unsplittableObjects = new List<GameObject>();
 
         // Represents all positional objects that can be fully contained in a child node.
-        private List<GameObject> _splittableObjects = new List<GameObject>();
+        private readonly List<GameObject> _splittableObjects = new List<GameObject>();
 
         // The children are numbered based on the standard mathematical quadrant system.
         private PositionalTree _child1 = null;
@@ -21,46 +21,32 @@ namespace GameEngine
         private PositionalTree _child4 = null;
 
         // Pointer to the parent node.
-        private PositionalTree _parent;
+        private readonly PositionalTree _parent;
 
         // True if this node is a leaf node. Used for just about every operation.
         private bool _isLeaf;
 
         // The four lines marking the bounding box of this node.
-        private readonly float _leftBound;
-        private readonly float _topBound;
-        private readonly float _rightBound;
-        private readonly float _bottomBound;
-        public float LeftBound
-        {
-            get => _leftBound;
-        }
-        public float TopBound
-        {
-            get => _topBound;
-        }
-        public float RightBound
-        {
-            get => _rightBound;
-        }
-        public float BottomBound
-        {
-            get => _bottomBound;
-        }        
+        public float LeftBound { get; }
+        public float TopBound { get; }
+        public float RightBound { get; }
+        public float BottomBound { get; }        
         public FloatRect Bounds
         {
-            get => new FloatRect(_leftBound, _rightBound, _rightBound - _leftBound, _topBound - _bottomBound);
+            get => new FloatRect(LeftBound, RightBound, RightBound - LeftBound, TopBound - BottomBound);
         }
 
         // The axes that mark the splits among children, used to insert an object into the correct child.
         private readonly float _xSplit;
         private readonly float _ySplit;
 
-        // The drawable counterpart to bounds, used for drawing the bounding box when debugging.
-        private readonly RectangleShape _boundingBox;
-
         // The number of objects that can be stored in a node before the tree is split.
         private const int NodeCapacity = 4;
+
+        public int CameraIndex { get; private set; }
+
+        // The drawable counterpart to bounds, used for drawing the bounding box when debugging.
+        private readonly RectangleShape _boundingBox;
 
         // The thickness of the bounding box and object boxes.
         private const float BorderThickness = 1f;
@@ -75,7 +61,7 @@ namespace GameEngine
         private static readonly Color UnsplittableObjectBorderColor = new Color(255, 130, 0);
 
         // Constructs the positional tree based on the given bounds.
-        public PositionalTree(FloatRect bounds, PositionalTree parent)
+        public PositionalTree(FloatRect bounds, PositionalTree parent, int cameraIndex)
         {
             // Set the parent.
             _parent = parent;
@@ -83,16 +69,17 @@ namespace GameEngine
             // Set the bounds and axes.
             float width = bounds.Width;
             float height = bounds.Height;
-            _leftBound = bounds.Left;
-            _topBound = bounds.Top;
-            _rightBound = _leftBound + width;
-            _bottomBound = _topBound + height;
-            _xSplit = _leftBound + width / 2f;
-            _ySplit = _topBound + height / 2f;
+            LeftBound = bounds.Left;
+            TopBound = bounds.Top;
+            RightBound = LeftBound + width;
+            BottomBound = TopBound + height;
+            _xSplit = LeftBound + width / 2f;
+            _ySplit = TopBound + height / 2f;
 
             // Set the drawable bounding box.
+            CameraIndex = cameraIndex;
             _boundingBox = new RectangleShape(new Vector2f(width - 2 * BorderThickness, height - 2 * BorderThickness));
-            _boundingBox.Position = new Vector2f(_leftBound + BorderThickness, _topBound + BorderThickness);
+            _boundingBox.Position = new Vector2f(LeftBound + BorderThickness, TopBound + BorderThickness);
             _boundingBox.OutlineThickness = BorderThickness;
             _boundingBox.OutlineColor = TreeBorderColor;
             _boundingBox.FillColor = Color.Transparent;
@@ -118,7 +105,7 @@ namespace GameEngine
             /*else
             {
                 Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
-                                  "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
+                                  "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
                 return;
             }*/
         }
@@ -131,7 +118,7 @@ namespace GameEngine
             bool posY = bottom >= _ySplit;
 
             // Since the object has a collision box, we must additionally check if its lying on as well as outside of bounds.
-            if (!(negX ^ posX) && !(negY ^ posY) || left < _leftBound || right > _rightBound || top < _topBound || bottom > _bottomBound)
+            if (!(negX ^ posX) && !(negY ^ posY) || left < LeftBound || right > RightBound || top < TopBound || bottom > BottomBound)
             {
                 cObject.NodePointer = this;
                 _unsplittableObjects.Add(cObject);
@@ -180,7 +167,7 @@ namespace GameEngine
             bool posY = y >= _ySplit;
 
             // Since this is only a point, we only have to check if its out of bounds.
-            if (x < _leftBound || x > _rightBound || y < _topBound || y > _bottomBound)
+            if (x < LeftBound || x > RightBound || y < TopBound || y > BottomBound)
             {
                 pObject.NodePointer = this;
                 _unsplittableObjects.Add(pObject);
@@ -229,11 +216,11 @@ namespace GameEngine
         {
             if (_child1 == null)
             {
-                Vector2f size = new Vector2f((_rightBound - _leftBound) / 2f, (_bottomBound - _topBound) / 2f);
-                _child1 = new PositionalTree(new FloatRect(new Vector2f(_leftBound + size.X, _topBound + size.Y), size), this);
-                _child2 = new PositionalTree(new FloatRect(new Vector2f(_leftBound, _topBound + size.Y), size), this);
-                _child3 = new PositionalTree(new FloatRect(new Vector2f(_leftBound, _topBound), size), this);
-                _child4 = new PositionalTree(new FloatRect(new Vector2f(_leftBound + size.X, _topBound), size), this);
+                Vector2f size = new Vector2f((RightBound - LeftBound) / 2f, (BottomBound - TopBound) / 2f);
+                _child1 = new PositionalTree(new FloatRect(new Vector2f(LeftBound + size.X, TopBound + size.Y), size), this, CameraIndex);
+                _child2 = new PositionalTree(new FloatRect(new Vector2f(LeftBound, TopBound + size.Y), size), this, CameraIndex);
+                _child3 = new PositionalTree(new FloatRect(new Vector2f(LeftBound, TopBound), size), this, CameraIndex);
+                _child4 = new PositionalTree(new FloatRect(new Vector2f(LeftBound + size.X, TopBound), size), this, CameraIndex);
             }
             _isLeaf = false;
             foreach (var splitObject in _splittableObjects)
@@ -250,7 +237,7 @@ namespace GameEngine
             /*if (!pObject.BelongsOnTree)
             {
                 Console.WriteLine("Warning: Tried to delete object that does not belong on tree" +
-                                  "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
+                                  "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
                 return;
             }*/
             /*if (pObject.NodePointer == null)
@@ -291,30 +278,30 @@ namespace GameEngine
             // Then try deleting it from the right child.
             float x = pObject.Position.X;
             float y = pObject.Position.Y;
-            if (x >= _xSplit && x <= _rightBound)
+            if (x >= _xSplit && x <= RightBound)
             {
-                if (y >= _ySplit && y <= _bottomBound)
+                if (y >= _ySplit && y <= BottomBound)
                 {
                     // Deletes from child1 if +X and +Y in reltation to the split axes.
                     _child1.SearchDelete(pObject);
                     return;
                 }
-                else if (y >= _topBound)
+                else if (y >= TopBound)
                 {
                     // Deletes from child4 if +X and -Y in relation to the split axes.
                     _child4.SearchDelete(pObject);
                     return;
                 }
             }
-            else if (x >= _leftBound)
+            else if (x >= LeftBound)
             {
-                if (y >= _ySplit && y <= _bottomBound)
+                if (y >= _ySplit && y <= BottomBound)
                 {
                     // Deletes from child2 if -X and +Y in relation to the split axes.
                     _child2.SearchDelete(pObject);
                     return;
                 }
-                else if (y >= _topBound)
+                else if (y >= TopBound)
                 {
                     // Goes to child3 if -X and -Y in relation to the split axes.
                     _child3.SearchDelete(pObject);
@@ -363,7 +350,7 @@ namespace GameEngine
                     float bottom = top + collisionRect.Height;
                     
                     // If the object does not need to be moved to a different node, don't bother deleting or reinserting it.
-                    if (_parent == null || left >= _leftBound && right <= _rightBound && top >= _topBound && bottom <= _bottomBound)
+                    if (_parent == null || left >= LeftBound && right <= RightBound && top >= TopBound && bottom <= BottomBound)
                     {
                         // Otherwise delete and reinsert it if the object is in bounds.
                         Delete(pObject);
@@ -382,7 +369,7 @@ namespace GameEngine
                     float y = newPos.Y;
 
                     // If the object does not need to be moved to a different node, don't bother deleting or reinserting it.
-                    if (_parent == null || x >= _leftBound && x <= _rightBound && y >= _topBound && y <= _bottomBound)
+                    if (_parent == null || x >= LeftBound && x <= RightBound && y >= TopBound && y <= BottomBound)
                     {
                         // Otherwise delete and reinsert it so it gets put in the right child.
                         Delete(pObject);
@@ -399,7 +386,7 @@ namespace GameEngine
         }
         private void Move (GameObject cObject, float left, float top, float right, float bottom)
         {
-            if (_parent == null || left >= _leftBound && right <= _rightBound && top >= _topBound && bottom <= _bottomBound)
+            if (_parent == null || left >= LeftBound && right <= RightBound && top >= TopBound && bottom <= BottomBound)
             {
                 // If this node can fully contain the object, insert it.
                 Insert(cObject, left, top, right, bottom);
@@ -412,7 +399,7 @@ namespace GameEngine
         }
         private void Move (GameObject pObject, float x, float y)
         {
-            if (_parent == null || x >= _leftBound && x <= _rightBound && y >= _topBound && y <= _bottomBound)
+            if (_parent == null || x >= LeftBound && x <= RightBound && y >= TopBound && y <= BottomBound)
             {
                 // If this node can fully contain the object, insert it.
                 Insert(pObject, x, y);
@@ -524,7 +511,7 @@ namespace GameEngine
         private void ThrowOperationErrorException(String operation, GameObject pObject)
         {
             throw new Exception("Could not " + operation + " object at (" + pObject.Position.X + ", " + pObject.Position.Y + ")" +
-                                "in bounds between (" + _leftBound + ", " + _topBound + ") and (" + _rightBound + ", " + _bottomBound + ")");
+                                "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
         }
 
         // Draws a box around the bounds of this nodes and all non-empty children, recursively.
@@ -549,7 +536,8 @@ namespace GameEngine
         // Draws a box around the collision box of each object in this node.
         private void DrawObjectCollisionBoxes()
         {
-            Camera cam = Game.CurrentScene.Camera;
+            Scene currentScene = Game.CurrentScene;
+            Camera cam = currentScene.Cameras[currentScene.Cameras.Length - 1];
 
             // Sets the thickness, border, and scale of the rectangle that will be drawn.
             RectangleShape drawableRect = new RectangleShape();

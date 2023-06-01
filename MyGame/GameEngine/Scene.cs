@@ -21,7 +21,10 @@ namespace GameEngine
 
         // This determines how the objects in PostitionalTree should be offset and scaled to the screen.
         // TODO: Make this an array or list of queues to allow for drawing multiple perspectives on screen.
-        public Camera Camera { get; protected set; }
+        public Camera[] Cameras { get; protected set; }
+        //public Camera Camera { get; protected set; }
+
+        protected int _currentCam;
 
         // Set to true to make WASD shift the Camera.
         protected bool _cameraDebugMode = false;
@@ -135,53 +138,57 @@ namespace GameEngine
             // This is for Camera debug mode, which gives manual Camera controls which are useful for well... debugging.
             if (_cameraDebugMode)
             {
-                View camView = Camera.View;
-                Vector2f camSize = camView.Size;
-                float camXOffset = camSize.X * 0.75f * time.AsSeconds();
-                float camYOffset = camSize.Y * 0.75f * time.AsSeconds();
-                Vector2f posDelta = new Vector2f();
-                float rotationDelta = 0f;
-                float zoomFactor = 1f;
-
+                Camera currentCam = Cameras[_currentCam];
                 if (Keyboard.IsKeyPressed(_cameraDebugResetKey))
                 {
-                    //camView.Reset(Camera.OriginalView);
+                    // If the reset key is held, nothing else needs to be processed
+                    currentCam.Reset();
                 }
                 else
                 {
+                    float seconds = time.AsSeconds();
+                    View camView = currentCam.View;
+                    Vector2f camSize = camView.Size;
+
+                    // We store the deltas to reduce the number of method calls.
+                    Vector2f posDelta = new Vector2f();
+                    float rotationDelta = 0f;
+                    float zoomFactor = 1f;
+
                     if (Keyboard.IsKeyPressed(_cameraDebugUpKey))
                     {
-                        posDelta.Y -= camYOffset;
+                        posDelta.Y -= camSize.Y * 0.75f * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugLeftKey))
                     {
-                        posDelta.X -= camXOffset;
+                        posDelta.X -= camSize.X * 0.75f * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugDownKey))
                     {
-                        posDelta.Y += camYOffset;
+                        posDelta.Y += camSize.Y * 0.75f * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugRightKey))
                     {
-                        posDelta.X += camXOffset;
+                        posDelta.X += camSize.X * 0.75f * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugClockwiseKey))
                     {
-                        rotationDelta += 60 * time.AsSeconds();
+                        rotationDelta += 60 * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugCounterclockwiseKey))
                     {
-                        rotationDelta -= 60 * time.AsSeconds();
+                        rotationDelta -= 60 * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugZoomInKey))
                     {
-                        zoomFactor -= 0.5f * time.AsSeconds();
+                        zoomFactor -= 0.5f * seconds;
                     }
                     if (Keyboard.IsKeyPressed(_cameraDebugZoomOutKey))
                     {
-                        zoomFactor += 0.5f * time.AsSeconds();
+                        zoomFactor += 0.5f * seconds;
                     }
 
+                    // By storing the deltas, we only have to make 3 calls no matter how many different ways we move.
                     camView.Move(posDelta);
                     camView.Rotate(rotationDelta);
                     camView.Zoom(zoomFactor);
@@ -211,31 +218,17 @@ namespace GameEngine
         // This method calls draw on each of our game objects.
         private void DrawGameObjects()
         {
-            if (!Game.IsFullscreen)
-            {
-                Camera.View.Viewport = Camera.StdViewport;
-            }
-            else
-            {
-                Camera.View.Viewport = Camera.FullScreenViewport;
-            }
-            Game.RenderWindow.SetView(Camera.View);
-
             /*foreach (var gameObject in _gameObjects)
             {
                 gameObject.Draw();
             }*/
-
-            Queue<GameObject> drawQueue = Camera.DrawQueue;
-            while (drawQueue.TryDequeue(out var toDraw))
+            for (int i = 0; i < Cameras.Length; i++)
             {
-                toDraw.Draw();
-            }
-
-            // Debug information in RecursiveDraw will draw over all gameObjects.
-            if (_treeDebugMode)
-            {
-                PositionalTree.Draw();
+                Cameras[i].Draw();
+                if (PositionalTree.CameraIndex == i)
+                {
+                    PositionalTree.Draw();
+                }
             }
         }
     }

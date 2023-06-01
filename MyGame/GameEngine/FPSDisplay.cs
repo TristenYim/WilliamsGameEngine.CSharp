@@ -8,17 +8,21 @@ namespace GameEngine
     {
 
         // Timer used to keep track of fps.
-        private Timer _timer;
+        private readonly Timer _timer;
         
         // The total number of game frames since this object was constructed or reset.
         private int _totalFrames;
 
+        // The index of the Camera this draws on.
+        private readonly int _cameraIndex;
+
         // The color of the dipslayed fps.
-        private static Color FPSColor = Color.Yellow;
+        private readonly static Color FPSColor = Color.Yellow;
 
         // Constructs the text with a built-in font, font size, color, at a built-in position.
         public FPSDisplay()
         {
+            _cameraIndex = Game.CurrentScene.Cameras.Length - 1;
             base.Text = new SFML.Graphics.Text("", Game.GetFont("Resources/Courneuf-Regular.ttf"), 24);
             Text.Color = FPSColor;
             Text.Position = new Vector2f(10, 10);
@@ -42,7 +46,7 @@ namespace GameEngine
                 _totalFrames = 0;
             }
             
-            Game.CurrentScene.Camera.DrawQueue.Enqueue(this);
+            Game.CurrentScene.Cameras[_cameraIndex].DrawQueue.Enqueue(this);
         }
     }
 }
