@@ -15,7 +15,7 @@ namespace GameEngine
         // Using a set prevents duplicates.
         protected readonly HashSet<string> _tags = new HashSet<string>();
 
-        // Set this to true if this object has a position and should be inserted on the PositionalTree.
+        // Set this to true if this object has a position and should be inserted on the SpatialTree.
         public bool BelongsOnTree { get; protected set; }
 
         // Set this to true if you want GameObjects to check for collsions with this.
@@ -32,19 +32,19 @@ namespace GameEngine
             _isCollisionCheckEnabled = isCollisionCheckEnabled;
         }
 
-        // This is the rectangular collision area in PositionalTree that will trigger collisions if other GameObjects intersect it  .
+        // This is the rectangular collision area in SpatialTree that will trigger collisions if other GameObjects intersect it  .
         public virtual FloatRect GetCollisionRect()
         {
             return new FloatRect();
         }
 
-        // This is the GameObject's 2D position on the PositionalTree.
+        // This is the GameObject's 2D position on the SpatialTree.
         public Vector2f Position { get; set; }
 
         // Points to the LinkedList node this is in.
         public LinkedListNode<GameObject> ListNodePointer { get; set; }
         
-        // Points to the PositionalTree node this is in, if applicable.
+        // Points to the SpatialTree node this is in, if applicable.
         public SpatialTree TreeNodePointer { get; set; }
 
         // Tags let you annotate your objects so you can identify them later

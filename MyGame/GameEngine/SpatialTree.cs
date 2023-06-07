@@ -43,7 +43,8 @@ namespace GameEngine
         // The number of objects that can be stored in a node before the tree is split.
         private const int NodeCapacity = 4;
 
-        public int CameraIndex { get; private set; }
+        // The index of the Camera in Scene the tree draws onto.
+        public static int CameraIndex { get; set; }
 
         // The drawable counterpart to bounds, used for drawing the bounding box when debugging.
         private readonly RectangleShape _boundingBox;
@@ -61,9 +62,8 @@ namespace GameEngine
         private static readonly Color UnsplittableObjectBorderColor = new Color(255, 130, 0);
 
         // Constructs the spatial tree based on the given bounds.
-        public SpatialTree(FloatRect bounds, SpatialTree parent, int cameraIndex)
+        public SpatialTree(FloatRect bounds, SpatialTree parent)
         {
-            //_splittableObjects = new GameObject[NodeCapacity];
             _parent = parent;
             _isLeaf = true;
 
@@ -76,7 +76,6 @@ namespace GameEngine
             _ySplit = TopBound + bounds.Height / 2f;
 
             // Set the drawing members.
-            CameraIndex = cameraIndex;
             _boundingBox = new RectangleShape(new Vector2f(bounds.Width - 2 * BorderThickness, bounds.Height - 2 * BorderThickness));
             _boundingBox.Position = new Vector2f(LeftBound + BorderThickness, TopBound + BorderThickness);
             _boundingBox.OutlineThickness = BorderThickness;
@@ -89,77 +88,77 @@ namespace GameEngine
             // There are separate methods for collidable objects and point-only objects to optimize each one separately
             if (gameObject.IsCollidable)
             {
-                Insert(gameObject, gameObject.GetCollisionRect().Left, gameObject.GetCollisionRect().Top, gameObject.GetCollisionRect().Left 
-                       + gameObject.GetCollisionRect().Width, gameObject.GetCollisionRect().Top + gameObject.GetCollisionRect().Height);
+                // Check if it is out of bounds here and insert it into _unspittableObjects if it is.
+                if (RectIsOutOfBounds(gameObject.GetCollisionRect()))
+                {
+                    gameObject.TreeNodePointer = this;
+                    _unsplittableObjects.Add(gameObject);
+                }
+                else
+                {
+                    Insert(gameObject, gameObject.GetCollisionRect().Left, gameObject.GetCollisionRect().Top, gameObject.GetCollisionRect().Left 
+                           + gameObject.GetCollisionRect().Width, gameObject.GetCollisionRect().Top + gameObject.GetCollisionRect().Height);
+                }
             }
             else if (gameObject.BelongsOnTree)
             {
-                Insert(gameObject, gameObject.Position.X, gameObject.Position.Y);
+                // Check if it is out of bounds here and insert it into _unspittableObjects if it is.
+                if (PointIsOutOfBounds(gameObject.Position))
+                {
+                    gameObject.TreeNodePointer = this;
+                    _unsplittableObjects.Add(gameObject);
+                    return;
+                }
+                else
+                {
+                    Insert(gameObject, gameObject.Position.X, gameObject.Position.Y);
+                }
             }
             else
             {
                 Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
                                   "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
-                return;
             }
         }
         
         // This helper method is for collidable objects.
         private void Insert(GameObject cObject, float left, float top, float right, float bottom)
         {
-            bool negX = left < _xSplit;
-            bool negY = top < _ySplit;
-            bool posX = right >= _xSplit;
-            bool posY = bottom >= _ySplit;
-
-            // Since the object has a collision box, we must additionally check if its lying on as well as outside of bounds.
-            if (!(negX ^ posX) && !(negY ^ posY) || rectIsOutOfBounds(left, top, right, bottom))
+            // Since the object has a collision box, we must check if its lying on the axes (which would make it unsplittable).
+            if (!(left < _xSplit ^ right >= _xSplit) && !(top < _ySplit ^ bottom >= _ySplit))
             {
                 cObject.TreeNodePointer = this;
                 _unsplittableObjects.Add(cObject);
             }
-            else if (_isLeaf)
+            else if (!InsertAndSplitInLeaf(cObject))
             {
-                // If its a leaf, add it to splittable objects and split if necessary.
-                cObject.TreeNodePointer = this;
-                _splittableObjects.Add(cObject);
-                if (_splittableObjects.Count >= NodeCapacity)
-                {
-                    Split();
-                }
-            }
-            else
-            {
-                // Otherwise, insert it into the right quadrant.
-                getRightQuadrant(posX, posY).Insert(cObject, left, top, right, bottom);
+                GetRightQuadrant(right >= _xSplit, bottom >= _ySplit).Insert(cObject, left, top, right, bottom);
             }
         }
         
         // This helper method is for point-only objects.
         private void Insert(GameObject pObject, float x, float y)
         {
-            // Since this is only a point, we only have to check if its out of bounds.
-            if (pointIsOutOfBounds(x, y))
+            if (!InsertAndSplitInLeaf(pObject))
             {
-                pObject.TreeNodePointer = this;
-                _unsplittableObjects.Add(pObject);
-                return;
+                GetRightQuadrant(x >= _xSplit, y >= _ySplit).Insert(pObject, x, y);
             }
-            else if (_isLeaf)
+        }
+
+        // If this is a leaf, it adds a GameObject to _splittableObjects, splits if necessary, and returns true. Used in the Insert helper methods.
+        private bool InsertAndSplitInLeaf(GameObject gameObject)
+        {
+            if (_isLeaf)
             {
-                // If its a leaf, add it to splittable objects and split if necessary.
-                pObject.TreeNodePointer = this;
-                _splittableObjects.Add(pObject);
+                gameObject.TreeNodePointer = this;
+                _splittableObjects.Add(gameObject);
                 if (_splittableObjects.Count >= NodeCapacity)
                 {
                     Split();
                 }
+                return true;
             }
-            else
-            {
-                // Otherwise, insert it into the right quadrant.
-                getRightQuadrant(x >= _xSplit, y >= _ySplit).Insert(pObject, x, y);
-            }
+            return false;
         }
 
         // Constructs the children if they are null and moves all splittable objects into their correct quadrant
@@ -169,10 +168,10 @@ namespace GameEngine
             if (_child1 == null)
             {
                 Vector2f size = new Vector2f((RightBound - LeftBound) / 2f, (BottomBound - TopBound) / 2f);
-                _child1 = new SpatialTree(new FloatRect(new Vector2f(LeftBound + size.X, TopBound + size.Y), size), this, CameraIndex);
-                _child2 = new SpatialTree(new FloatRect(new Vector2f(LeftBound, TopBound + size.Y), size), this, CameraIndex);
-                _child3 = new SpatialTree(new FloatRect(new Vector2f(LeftBound, TopBound), size), this, CameraIndex);
-                _child4 = new SpatialTree(new FloatRect(new Vector2f(LeftBound + size.X, TopBound), size), this, CameraIndex);
+                _child1 = new SpatialTree(new FloatRect(new Vector2f(LeftBound + size.X, TopBound + size.Y), size), this);
+                _child2 = new SpatialTree(new FloatRect(new Vector2f(LeftBound, TopBound + size.Y), size), this);
+                _child3 = new SpatialTree(new FloatRect(new Vector2f(LeftBound, TopBound), size), this);
+                _child4 = new SpatialTree(new FloatRect(new Vector2f(LeftBound + size.X, TopBound), size), this);
             }
             _isLeaf = false;
 
@@ -180,9 +179,8 @@ namespace GameEngine
             for (int i = _splittableObjects.Count - 1; i > 0; i--)
             {
                 // Since we already know this is a splittable object, we do this instead of calling Insert to save a few checks.
-                bool posX = _splittableObjects[i].GetCollisionRect().Left >= _xSplit;
-                bool posY = _splittableObjects[i].GetCollisionRect().Top >= _ySplit;
-                getRightQuadrant(posX, posY).Insert(_splittableObjects[i]);
+                GetRightQuadrant(_splittableObjects[i].GetCollisionRect().Left >= _xSplit, _splittableObjects[i].GetCollisionRect().Top >= _ySplit)
+                                .Insert(_splittableObjects[i]);
                 _splittableObjects.RemoveAt(i);
             }
         }
@@ -209,33 +207,18 @@ namespace GameEngine
                         return gameObject;
                     }
                 }
-
                 // If it reaches this point, no further searching can be done and null is returned.
                 return null;
             }
 
-            // TODO: Finish this
-            // If it could not be found, try the children. Don't bother searching if a result has already been found.
-            GameObject result = _child1.Search(pos);
-            if (result == null)
-            {
-                _child2.Search(pos);
-            }
-            if (result == null)
-            {
-                _child3.Search(pos);
-            }
-            if (result == null)
-            {
-                _child4.Search(pos);
-            }
-            return result;
+            // Otherwise, continuesearching in the correct child;
+            return GetRightQuadrant(pos.X >= _xSplit, pos.Y >= _ySplit).Search(pos);
         }
 
         // This deletes an object using its NodePointer if available, or by performing a search delete if not.
         public void Delete(GameObject pObject)
         {
-            if (!pObject.TreeNodePointer._splittableObjects.Remove(pObject) && !pObject.TreeNodePointer._unsplittableObjects.Remove(pObject))
+            if (!pObject.TreeNodePointer._unsplittableObjects.Remove(pObject) && !pObject.TreeNodePointer._splittableObjects.Remove(pObject))
             {
                 // An object's NodePointer must contain it, otherwise you're implementing NodePointer wrong.
                 //node.ThrowOperationErrorException("delete", pObject);
@@ -255,20 +238,24 @@ namespace GameEngine
             // First try the easy part, checking if the object can be removed from the splittable or unsplittable objects.
             if (_unsplittableObjects.Remove(pObject) || _isLeaf && _splittableObjects.Remove(pObject))
             {
-                Merge();
+                if (_parent != null && IsEmptyLeaf())
+                {
+                    // Merge if deleting from this turned it into an empty leaf.
+                    _parent.Merge();
+                }
                 return;
             }
 
             // Check if it's out of bounds - if it is, that means you tried to delete an object that is not in the tree.
-            if (pointIsOutOfBounds(pObject.Position))
+            if (PointIsOutOfBounds(pObject.Position))
             {
-                
+                Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
+                                  "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
+                return;
             }
 
             // Otherwise, try to delete from a child.
-            bool posX = pObject.Position.X >= _xSplit;
-            bool posY = pObject.Position.Y >= _ySplit;
-            getRightQuadrant(pObject.Position.X >= _xSplit, pObject.Position.Y >= _ySplit).SearchDelete(pObject);
+            GetRightQuadrant(pObject.Position.X >= _xSplit, pObject.Position.Y >= _ySplit).SearchDelete(pObject);
         }
 
         // Use this when deleting to ensure that nodes whose children are empty leaves will merge.
@@ -287,70 +274,59 @@ namespace GameEngine
             }
         }
 
-        // TODO: Fix the efficiency/readability of this.
         // Deletes the object, and inserts it into the nearest parent which can fully contain it.
-        public void Move (GameObject pObject, Vector2f newPos)
+        public static void Move (GameObject pObject, Vector2f newPos)
         {
-            if (this != pObject.TreeNodePointer)
-            {
-                pObject.TreeNodePointer.Move(pObject, newPos);
-            }
-            else
-            {
-                pObject.Position = newPos;
+            pObject.Position = newPos;
 
-                // There are separate helper methods for collidable objects and point only objects to optimize each one separately.
-                if (pObject.IsCollidable)
+            // There are separate helper methods for collidable objects and point only objects to optimize each one separately.
+            if (pObject.IsCollidable)
+            {
+                if (pObject.TreeNodePointer._parent == null || !pObject.TreeNodePointer.RectIsOutOfBounds(pObject.GetCollisionRect()))
                 {
-                    if (_parent == null || !rectIsOutOfBounds(pObject.GetCollisionRect()))
+                    // If this is a leaf, the object does not need to be moved to a different node.
+                    if (!pObject.TreeNodePointer._isLeaf)
                     {
-                        // If this is a leaf, the object does not need to be moved to a different node.
-                        if (!_isLeaf)
+                        // If this is not a leaf, it needs to be deleted and reinserted it into the right child.
+                        if (!pObject.TreeNodePointer._splittableObjects.Remove(pObject))
                         {
-                            // Otherwise, delete and reinsert it into the right child.
-                            if (!_splittableObjects.Remove(pObject))
-                            {
-                                _unsplittableObjects.Remove(pObject);
-                            }
-                            Insert(pObject, pObject.GetCollisionRect().Left, pObject.GetCollisionRect().Top, pObject.GetCollisionRect().Left 
-                                   + pObject.GetCollisionRect().Width, pObject.GetCollisionRect().Top + pObject.GetCollisionRect().Height);
+                            pObject.TreeNodePointer._unsplittableObjects.Remove(pObject);
                         }
-                    }
-                    else
-                    {
-                        // Otherwise, delete and move it if it is out of bounds
-                        if (!_splittableObjects.Remove(pObject))
-                        {
-                            _unsplittableObjects.Remove(pObject);
-                        }
-                        _parent.Move(pObject, pObject.GetCollisionRect().Left, pObject.GetCollisionRect().Top, pObject.GetCollisionRect().Left 
-                                     + pObject.GetCollisionRect().Width, pObject.GetCollisionRect().Top + pObject.GetCollisionRect().Height);
+                        pObject.TreeNodePointer.Insert(pObject, pObject.GetCollisionRect().Left, pObject.GetCollisionRect().Top, pObject.GetCollisionRect().Left 
+                                + pObject.GetCollisionRect().Width, pObject.GetCollisionRect().Top + pObject.GetCollisionRect().Height);
                     }
                 }
                 else
                 {
-                    if (_parent == null || !pointIsOutOfBounds(newPos))
+                    // If it is out of bounds, delete and try to move it into _parent.
+                    pObject.TreeNodePointer.Delete(pObject);
+                    pObject.TreeNodePointer._parent.Move(pObject, pObject.GetCollisionRect().Left, pObject.GetCollisionRect().Top, pObject.GetCollisionRect().Left 
+                                    + pObject.GetCollisionRect().Width, pObject.GetCollisionRect().Top + pObject.GetCollisionRect().Height);
+                }
+            }
+            else
+            {
+                if (pObject.TreeNodePointer._parent == null || !pObject.TreeNodePointer.PointIsOutOfBounds(newPos))
+                {
+                    // If the object does not need to be moved to a different node, don't bother deleting and reinserting it.
+                    if (!pObject.TreeNodePointer._isLeaf)
                     {
-                        // If the object does not need to be moved to a different node, don't bother deleting and reinserting it.
-                        if (!_isLeaf)
-                        {
-                            // Otherwise delete and reinsert it so it gets put in the right child.
-                            _unsplittableObjects.Remove(pObject);
-                            Insert(pObject, newPos.X, newPos.Y);
-                        }
+                        // If this is not a leaf, it needs to be deleted and reinserted it into the right child.
+                        pObject.TreeNodePointer._unsplittableObjects.Remove(pObject);
+                        pObject.TreeNodePointer.Insert(pObject, newPos.X, newPos.Y);
                     }
-                    else
-                    {
-                        // If it is out of bounds, try to see if it can be moved into _parent
-                        Delete(pObject);
-                        _parent.Move(pObject, newPos.X, newPos.Y);
-                    }
+                }
+                else
+                {
+                    // If it is out of bounds, delete and try to move it into _parent.
+                    pObject.TreeNodePointer.Delete(pObject);
+                    pObject.TreeNodePointer._parent.Move(pObject, newPos.X, newPos.Y);
                 }
             }
         }
         private void Move (GameObject cObject, float left, float top, float right, float bottom)
         {
-            if (_parent == null || !rectIsOutOfBounds(left, top, right, bottom))
+            if (_parent == null || !RectIsOutOfBounds(left, top, right, bottom))
             {
                 // If this node can fully contain the object, insert it.
                 Insert(cObject, left, top, right, bottom);
@@ -363,7 +339,7 @@ namespace GameEngine
         }
         private void Move (GameObject pObject, float x, float y)
         {
-            if (_parent == null || !pointIsOutOfBounds(x, y))
+            if (_parent == null || !PointIsOutOfBounds(x, y))
             {
                 // If this node can fully contain the object, insert it.
                 Insert(pObject, x, y);
@@ -518,7 +494,7 @@ namespace GameEngine
             return _isLeaf && _splittableObjects.Count == 0 && _unsplittableObjects.Count == 0;
         }
 
-        private SpatialTree getRightQuadrant(bool posX, bool posY)
+        private SpatialTree GetRightQuadrant(bool posX, bool posY)
         {
             if (posX)
             {
@@ -540,25 +516,25 @@ namespace GameEngine
         }
     
         // Returns true if a FloatRect is out of bounds.
-        private bool rectIsOutOfBounds(FloatRect rect)
+        private bool RectIsOutOfBounds(FloatRect rect)
         {
             return (rect.Left <= LeftBound || rect.Top <= TopBound || rect.Left + rect.Width >= RightBound || rect.Top + rect.Height >= BottomBound);
         }
 
         // Returns true if a FloatRect (represented as lines) is out of bounds.
-        private bool rectIsOutOfBounds(float left, float top, float right, float bottom)
+        private bool RectIsOutOfBounds(float left, float top, float right, float bottom)
         {
             return (left < LeftBound || top < TopBound || right > RightBound || bottom > BottomBound);
         }
 
-        // Returns true if a point is out of bounds
-        private bool pointIsOutOfBounds(Vector2f point)
+        // Returns true if a point is out of bounds.
+        private bool PointIsOutOfBounds(Vector2f point)
         {
             return (point.X < LeftBound || point.Y < TopBound || point.X > RightBound || point.Y < BottomBound);
         }
 
-        // Returns true if a point (reperesented as coordinates) is out of bounds
-        private bool pointIsOutOfBounds(float x, float y)
+        // Returns true if a point (reperesented as coordinates) is out of bounds.
+        private bool PointIsOutOfBounds(float x, float y)
         {
             return (x < LeftBound || y < TopBound || x > RightBound || y < BottomBound);
         }
