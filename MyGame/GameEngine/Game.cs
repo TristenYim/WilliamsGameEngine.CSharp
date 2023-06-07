@@ -59,7 +59,10 @@ namespace GameEngine
         public static void Initialize(uint windowWidth, uint windowHeight, string windowTitle, bool showFps, Styles windowStyle, Color bezelColor, Keyboard.Key fullscrenKey, Keyboard.Key closeKey)
         {
             // Only initialize once.
-            if (_initialized) return;
+            if (_initialized) 
+            {
+                return;
+            }
             _initialized = true;
 
             // Set fpsShowing
@@ -70,8 +73,8 @@ namespace GameEngine
             _title = windowTitle;
             _style = windowStyle;
             _window = new RenderWindow(VideoMode, windowTitle, windowStyle);
-            IsFullscreen = false;
             _window.SetFramerateLimit(FramesPerSecond);
+            IsFullscreen = false;
 
             // Set the closeKey and fullscreen key
             _closeKey = closeKey;
@@ -109,20 +112,16 @@ namespace GameEngine
         public static void MakeFullscreen()
         {
             IsFullscreen = true;
-
-            Vector2u fullScreenSize = new Vector2u(VideoMode.DesktopMode.Width, VideoMode.DesktopMode.Height);
-            RenderWindow newWindow = new RenderWindow(VideoMode, _title, Styles.None, _window.Settings);
-            newWindow.Position = new Vector2i(0, 0);
             _window.Close();
-            _window = newWindow;
-            _window.Size = fullScreenSize;
+            _window = new RenderWindow(VideoMode, _title, Styles.None, _window.Settings);
+            _window.Position = new Vector2i(0, 0);
+            _window.Size = new Vector2u(VideoMode.DesktopMode.Width, VideoMode.DesktopMode.Height);
         }
         public static void UnFullscreen()
         {
             IsFullscreen = false;
-            RenderWindow newWindow = new RenderWindow(VideoMode, _title, _style);
             _window.Close();
-            _window = newWindow;
+            _window = new RenderWindow(VideoMode, _title, _style, _window.Settings);
         }
 
         // Get a texture (pixels) from a file
@@ -218,7 +217,7 @@ namespace GameEngine
                 {
                     _forceCloseTimer.Reset();
                 }
-                
+
                 if (Keyboard.IsKeyPressed(_fullscreenKey))
                 {
                     if (!_fullscreenKeyHeld)

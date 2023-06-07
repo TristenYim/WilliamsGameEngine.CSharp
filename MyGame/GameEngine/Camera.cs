@@ -50,7 +50,10 @@ namespace GameEngine
 
             while (DrawQueue.TryDequeue(out var toDraw))
             {
-                toDraw.Draw();
+                if (!toDraw.IsDead())
+                {
+                    toDraw.Draw();
+                }
             }
         }
 
@@ -64,9 +67,7 @@ namespace GameEngine
         public void GenerateFullscreenViewport()
         {
             Vector2f fullScreenSize = new Vector2f(VideoMode.DesktopMode.Width, VideoMode.DesktopMode.Height);
-            Vector2f stdSize = (Vector2f)Game.RenderWindow.Size;
-            stdSize.X *= StdViewport.Width;
-            stdSize.Y *= StdViewport.Height;
+            Vector2f stdSize = new Vector2f(Game.RenderWindow.Size.X * StdViewport.Width, Game.RenderWindow.Size.Y * StdViewport.Height);
             float scaleXFactor = fullScreenSize.X / stdSize.X;
             float scaleYFactor = fullScreenSize.Y / stdSize.Y;
 

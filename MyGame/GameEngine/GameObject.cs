@@ -9,16 +9,17 @@ namespace GameEngine
     {
         private bool _isDead;
 
-        // Set this to true if and only if you want this to check for collisions with other GameObjects.
+        // Set this to true if you want this to check for collisions with other GameObjects.
         protected bool _isCollisionCheckEnabled;
 
         // Using a set prevents duplicates.
         protected readonly HashSet<string> _tags = new HashSet<string>();
 
-        // Set this to true if and only if this object belongs somewhere on the PositionalTree.
+        // Set this to true if this object has a position and should be inserted on the PositionalTree.
         public bool BelongsOnTree { get; protected set; }
 
-        // Set this to true if and only if you want GameObjects to check for collsions with this.
+        // Set this to true if you want GameObjects to check for collsions with this.
+        // NOTE: BelongsOnTree must also be true for this to work!
         public bool IsCollidable { get; set; }
 
         public bool IsCollisionCheckEnabled()
@@ -40,8 +41,11 @@ namespace GameEngine
         // This is the GameObject's 2D position on the PositionalTree.
         public Vector2f Position { get; set; }
 
-        // Points to the PositionalTree node it belongs in, if this belongs in the PositionalTree.
-        public PositionalTree NodePointer { get; set; }
+        // Points to the LinkedList node this is in.
+        public LinkedListNode<GameObject> ListNodePointer { get; set; }
+        
+        // Points to the PositionalTree node this is in, if applicable.
+        public SpatialTree TreeNodePointer { get; set; }
 
         // Tags let you annotate your objects so you can identify them later
         // (such as "player").

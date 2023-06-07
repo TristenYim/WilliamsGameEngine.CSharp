@@ -5,7 +5,7 @@ using SFML.System;
 namespace GameEngine
 {
     // A sprite that can have multiple animations and play them with different AnimationModes.
-    class AnimatedSprite : GameObject
+    /*class AnimatedSprite : GameObject
     {
         // Specifies how to play an animation.
         public enum AnimationMode
@@ -292,6 +292,98 @@ namespace GameEngine
             // If no animations have been set, or if the current animation contains
             // no frames, then the sprite is not drawable.
             return _animations.Count > 0 && _currentAnimation != null;
+        }
+    }*/
+
+    // AnimatedSprite DOES NOT inherit from Sprite because there are some things Sprite can do that AnimatedSprite can't.
+    // 
+    class AnimatedSprite : Transformable, Drawable
+    {
+        // This Sprite contains every frame of the animation. When the animation changes frame, the texture shown is simply shifted down.
+        private Sprite _spriteSheet;
+
+        // This is the internal timer that the animation state is based on.
+        private Timer _animationTimer;
+
+        // This is the theoretical amount of time that a frame will stay on screen for.
+        // NOTE: If the computer is extremely laggy, the animation will still try to run on time, even if that means skipping frames.
+        private int _msPerFrame;
+
+        // Set this to true if the animation loops after finishing.
+        private bool _loops;
+
+        // This is the position of the Sprite
+        public new Vector2f Position
+        {
+            get => _spriteSheet.Position;
+            set => _spriteSheet.Position = value;
+        }
+
+        // This is the rotation of the Sprite
+        public new float Rotation
+        {
+            get => _spriteSheet.Rotation;
+            set => _spriteSheet.Rotation = value;
+        }
+
+        // This is the scale of the Sprite.
+        public new Vector2f Scale
+        {
+            get => _spriteSheet.Scale;
+            set => _spriteSheet.Scale = value;
+        }
+    
+        // This is the origin point of the Sprite which all animations are centered around.
+        public new Vector2f Origin
+        {
+            get => _spriteSheet.Origin;
+            set => _spriteSheet.Origin = value;
+        }
+
+        public new Transform Transform
+        {
+            get => _spriteSheet.Transform;
+        }
+
+        public new Transform InverseTransform
+        {
+            get => _spriteSheet.InverseTransform;
+        }
+
+        public AnimatedSprite(Texture texture, Vector2i boundSize, int msPerFrame)
+        {
+            _spriteSheet = new Sprite(texture);
+            _msPerFrame = msPerFrame;
+
+            _loops = false;
+            _animationTimer = new Timer(_spriteSheet.TextureRect.Width / boundSize.X * msPerFrame, false);
+
+            _spriteSheet.TextureRect = new IntRect(new Vector2i(), boundSize);
+        }
+
+        public void Update(Time elapsed)
+        {
+            if (_loops)
+            {
+                _animationTimer.Update(elapsed);
+                _animationTimer.SubResetIfSurpassed();
+            }
+            else if (!_animationTimer.SurpassedTarget)
+            {
+                _animationTimer.Update(elapsed);
+                if (_animationTimer.SurpassedTarget)
+                {
+                    _animationTimer.Time = _animationTimer.TargetTime;
+                }
+            }
+        }
+
+        public void Draw(RenderTarget target, RenderStates states)
+        {
+            IntRect bounds = _spriteSheet.TextureRect;
+            bounds.Left = bounds.Width * (int)(_animationTimer.Time / _msPerFrame);
+            _spriteSheet.TextureRect = bounds;
+            _spriteSheet.Draw(target, states);
         }
     }
 }
