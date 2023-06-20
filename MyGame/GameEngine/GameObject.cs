@@ -7,29 +7,56 @@ namespace GameEngine
     // This class represents every object in your game, such as the player, enemies, and so on.
     abstract class GameObject
     {
+        // If _isDead is true, this will stop updating and drawing and eventually be removed frome _gameObjects and SpatialTree in the current Scene.
         private bool _isDead;
-
-        // Set this to true if you want this to check for collisions with other GameObjects.
-        protected bool _isCollisionCheckEnabled;
 
         // Using a set prevents duplicates.
         protected readonly HashSet<string> _tags = new HashSet<string>();
 
-        // Set this to true if this object has a position and should be inserted on the SpatialTree.
-        public bool BelongsOnTree { get; protected set; }
+        // This is the GameObject's 2D position on the SpatialTree.
+        public Vector2f Position { get; set; }
+        
+        // Points to the SpatialTree node this is in, if applicable.
+        public SpatialTree TreeNodePointer { get; set; }
 
-        // Set this to true if you want GameObjects to check for collsions with this.
-        // NOTE: BelongsOnTree must also be true for this to work!
-        public bool IsCollidable { get; set; }
+        // These sets define how this collides with other GameObjects. 
+        // This can only collide with objects that are broadcasting its position on one of the the same "layers" (represented by a string) 
+        //      as one one of the "layers" this is checking.  
+        protected HashSet<string> _collisionBroadcastLayers = new HashSet<string>();
+        protected HashSet<string> _collisionCheckLayers = new HashSet<string>();
+        public bool IsBroadcastingCollionLayers
+        {
+            get => _collisionBroadcastLayers.Count != 0;
+        }
 
         public bool IsCollisionCheckEnabled()
         {
-            return _isCollisionCheckEnabled;
+            return _collisionCheckLayers.Count != 0;
         }
-
-        public void SetCollisionCheckEnabled(bool isCollisionCheckEnabled)
+        
+        // This checks if this and otherGameObject are colliding.
+        public virtual bool IsCollidingWith (GameObject otherGameObject)
         {
-            _isCollisionCheckEnabled = isCollisionCheckEnabled;
+            if (GetCollisionRect().Intersects(otherGameObject.GetCollisionRect()))
+            {
+                // First check if _collisionCheckLayers contains a string in otherGameObject's _collisionBroadcastLayers.
+                foreach (var layer in _collisionCheckLayers)
+                {
+                    if (otherGameObject._collisionBroadcastLayers.Contains(layer))
+                    {
+                        return true;
+                    }
+                }
+                // Then check if a string in _collisionBroadcastLayers is contained in otherGameObject's _collisionCheckLayers.
+                foreach (var layer in otherGameObject._collisionCheckLayers)
+                {
+                    if (_collisionBroadcastLayers.Contains(layer))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         // This is the rectangular collision area in SpatialTree that will trigger collisions if other GameObjects intersect it  .
@@ -37,15 +64,6 @@ namespace GameEngine
         {
             return new FloatRect();
         }
-
-        // This is the GameObject's 2D position on the SpatialTree.
-        public Vector2f Position { get; set; }
-
-        // Points to the LinkedList node this is in.
-        public LinkedListNode<GameObject> ListNodePointer { get; set; }
-        
-        // Points to the SpatialTree node this is in, if applicable.
-        public SpatialTree TreeNodePointer { get; set; }
 
         // Tags let you annotate your objects so you can identify them later
         // (such as "player").

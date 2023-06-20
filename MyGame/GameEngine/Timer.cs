@@ -8,21 +8,29 @@ namespace GameEngine {
         public float Time { get; set; }
 
         // Time to surpass in ms.
-        public int TargetTime { get; set; }
+        public float TargetTime { get; set; }
 
         // Automatically resets the timer as soon as it surpasses _targetTime if set to true.
         private bool _autoReset;
 
-        // Initializes _targetTime and _autoreset based on given parameters.
-        public Timer(int targetTime, bool autoReset)
-        {
-            BelongsOnTree = false;
-            IsCollidable = false;
-            _isCollisionCheckEnabled = false;
+        // Determines if the timer should SubReset or Reset when it surpasses _targetTime.
+        private bool _autoSubReset;
 
+        // Initializes _targetTime based on the given time, and _autoreset set to false.
+        public Timer(float targetTime)
+        {
             TargetTime = targetTime;
-            _autoReset = autoReset;
+            _autoReset = false;
             Time = 0f;
+        }
+
+        // Initializes _targetTime and _autoSubReset based on the given parameters, with _autoReset set to true.
+        public Timer(float targetTime, bool autoSubReset)
+        {
+            TargetTime = targetTime;
+            _autoReset = true;
+            _autoSubReset = autoSubReset;
+            Time = 0f;   
         }
 
         // Counts _time up and subtract resets it if _autoReset is true. 
@@ -32,7 +40,14 @@ namespace GameEngine {
             Time += elapsed.AsMicroseconds() / 1000f;
             if (_autoReset)
             {
-                SubResetIfSurpassed();
+                if (_autoSubReset)
+                {
+                    SubResetIfSurpassed();
+                }
+                else
+                {
+                    ResetIfSurpassed();
+                }
             }
         }
 
@@ -44,7 +59,15 @@ namespace GameEngine {
         {
             if (SurpassedTarget)
             {
+                int extraResetActions = (int)((Time - TargetTime) / TargetTime);
                 Reset();
+
+                // Ensures ResetAction() is called the correct number of times regardless of the framerate.
+                while (extraResetActions > 0)
+                {
+                    ResetAction();
+                    extraResetActions--;
+                }
                 return true;
             }
             return false;
@@ -54,8 +77,12 @@ namespace GameEngine {
         public bool SubResetIfSurpassed()
         {
             if (SurpassedTarget)
-            {
-                SubReset();
+            {   
+                // Ensures ResetAction() is called the correct number of times regardless of the framerate.
+                while (SurpassedTarget)
+                {
+                    SubReset();
+                }
                 return true;
             }
             return false;

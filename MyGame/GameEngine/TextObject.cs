@@ -20,10 +20,6 @@ namespace GameEngine
         // Constructs the Text with all of the text properties (DisplayedString, font, position) set.
         public TextObject(string text, Font font, uint charSize, Color color, Vector2f pos, int cameraIndex)
         {
-            BelongsOnTree = false;
-            IsCollidable = false;
-            _isCollisionCheckEnabled = false;
-
             Text = new Text(text, font, charSize);
             Text.Position = pos;
 

@@ -28,7 +28,7 @@ namespace GameEngine
             Text.Position = new Vector2f(10, 10);
 
             // Set to 1 to avoid divide by 0 error.
-            _timer = new Timer(500, false);
+            _timer = new Timer(500);
 
             _totalFrames = 0;
             AssignTag("textObject");
@@ -38,15 +38,18 @@ namespace GameEngine
         {
             _timer.Update(elapsed);
             _totalFrames++;
-            decimal fps = (decimal)_totalFrames / (decimal)_timer.Time * 1000;
-            if (_timer.SurpassedTarget)
-            {
-                Text.DisplayedString = "FPS: " + decimal.Round(fps, 1);
-                _timer.Reset();
-                _totalFrames = 0;
+            if (_timer.Time != 0)
+                {
+                decimal fps = (decimal)_totalFrames / (decimal)_timer.Time * 1000;
+                if (_timer.SurpassedTarget)
+                {
+                    Text.DisplayedString = "FPS: " + decimal.Round(fps, 1);
+                    _timer.Reset();
+                    _totalFrames = 0;
+                }
+                
+                Game.CurrentScene.Cameras[_cameraIndex].DrawQueue.Enqueue(this);
             }
-            
-            Game.CurrentScene.Cameras[_cameraIndex].DrawQueue.Enqueue(this);
         }
     }
 }

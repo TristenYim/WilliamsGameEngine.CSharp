@@ -2,6 +2,7 @@
 using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
+using GameEngine;
 
 namespace GameEngine
 {
@@ -13,11 +14,6 @@ namespace GameEngine
 
         // This is a 2D space of GameObjects which can be (but does not have to be) bounded by the Window.
         public SpatialTree SpatialTree { get; protected set; }
-
-        // Enabling will draw boxes around used PostitionalTree nodes (and the collision boxes of objects inside).
-        // This can be useful for troubleshooting broken collision detection or visualizing how SpatialTree is optimtizing your game.
-        // PLEASE NOTE: Enabling this will greatly reduce framerate due to the amount of extra things being drawn on screen!
-        protected bool _treeDebugMode = false;
 
         // This is the list of Cameras, which both act as render layers and allow for separate perspective control. Cameras are rendered first-to-last.
         public Camera[] Cameras { get; protected set; }
@@ -52,7 +48,7 @@ namespace GameEngine
             _gameObjects.Add(gameObject);
 
             // This adds the game object into the SpatialTree if it belongs on the tree.
-            if (gameObject.BelongsOnTree)
+            if (gameObject.Position != null)
             {
                 SpatialTree.Insert(gameObject);
             }
@@ -133,28 +129,6 @@ namespace GameEngine
         // This method calls Update on each of our GameObjects.
         private void UpdateGameObjects(Time time)
         {
-            /*LinkedListNode<GameObject> gameObjectNode = _gameObjects.First;
-            while (gameObjectNode != null)
-            {
-                if (gameObjectNode.Value.IsDead())
-                {
-                    LinkedListNode<GameObject> next = gameObjectNode.Next;
-                    if (gameObjectNode.Value.BelongsOnTree)
-                    {
-                        // Delete it from the SpatialTree if it may be on the it.
-                        SpatialTree.Delete(gameObjectNode.Value);
-                    }
-                    _gameObjects.Remove(gameObjectNode);
-                    gameObjectNode = next;
-                    if (gameObjectNode == null)
-                    {
-                        break;
-                    }
-                }
-                gameObjectNode.Value.Update(time);
-                gameObjectNode = gameObjectNode.Next;
-            }*/
-
             for (int i = 0; i < _gameObjects.Count; i++)
             {
                 _gameObjects[i].Update(time);
@@ -224,7 +198,7 @@ namespace GameEngine
             {
                 if (_gameObjects[i].IsDead())
                 {
-                    if (_gameObjects[i].BelongsOnTree)
+                    if (_gameObjects[i].Position != null)
                     {
                         // Delete it from the SpatialTree if it may be on the it.
                         SpatialTree.Delete(_gameObjects[i]);
@@ -240,13 +214,8 @@ namespace GameEngine
             for (int i = 0; i < Cameras.Length; i++)
             {
                 Cameras[i].Draw();
-
-                // This draws the SpatialTree debug info on the right layer.
-                if (_treeDebugMode && SpatialTree.CameraIndex == i)
-                {
-                    SpatialTree.Draw(Game.RenderWindow, RenderStates.Default);
-                }
             }
+            Debug.Draw();
         }
     }
 }
