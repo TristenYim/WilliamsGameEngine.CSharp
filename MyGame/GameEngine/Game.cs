@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using SFML.Audio;
 using SFML.Graphics;
 using SFML.System;
@@ -10,7 +11,16 @@ namespace GameEngine
     // The Game manages scenes and runs the main game loop.
     static class Game
     {
-        // The number of frames that will be drawn to the screen in one second.
+        // This is the internal clock which is used to calculate the Time since the last frame and to manage timers.
+        private static Stopwatch _gameClock;
+        
+        // The current time since _gameClock was started in milliseconds.
+        public static double CurrentTimeMS
+        {
+            get => _gameClock.Elapsed.TotalMilliseconds;
+        }
+        
+        // The maximum number of frames that will be drawn to the screen in one second.
         private const int FramesPerSecond = 2147483647;
         //private const int FramesPerSecond = 60;
 
@@ -45,7 +55,7 @@ namespace GameEngine
         private static Keyboard.Key _fullscreenKey;
 
         // @TODO: Add more keyboard information (Whether each key is held, how long it's been held for, etc.)
-        private static Timer _forceCloseTimer = new Timer(1000, false);
+        private static Timer _forceCloseTimer;
 
         // A flag to prevent being initialized twice.
         private static bool _initialized;
@@ -56,7 +66,7 @@ namespace GameEngine
         public static Random Random = new Random(42);
 
         // Creates our render window. Must be called once at startup.
-        public static void Initialize(uint windowWidth, uint windowHeight, string windowTitle, bool showFps, Styles windowStyle, Color bezelColor, Keyboard.Key fullscrenKey, Keyboard.Key closeKey)
+        public static void Initialize(uint windowWidth, uint windowHeight, string windowTitle, Styles windowStyle, Keyboard.Key fullscrenKey, Keyboard.Key closeKey)
         {
             // Only initialize once.
             if (_initialized) 
@@ -64,9 +74,6 @@ namespace GameEngine
                 return;
             }
             _initialized = true;
-
-            // Set fpsShowing
-            FPSShowing = showFps;
 
             // Create the render window.
             VideoMode = new VideoMode(windowWidth, windowHeight);
@@ -76,9 +83,13 @@ namespace GameEngine
             _window.SetFramerateLimit(FramesPerSecond);
             IsFullscreen = false;
 
-            // Set the closeKey and fullscreen key
+            // Set the closeKey and fullscreen key.
             _closeKey = closeKey;
             _fullscreenKey = fullscrenKey;
+
+            // Setup clock and internal timers.
+            _gameClock = new Stopwatch();
+            _forceCloseTimer = new Timer(1000.0);
 
             // Add a method to be called whenever the "Closed" event fires.
             _window.Closed += ClosedEventHandler;
@@ -177,7 +188,7 @@ namespace GameEngine
                 _currentScene = scene;
 
                 // If we set showFPS to true, add an fps Object to the new scene.
-                if (FPSShowing) { _currentScene.AddGameObject(new FPSDisplay()); }
+                //if (FPSShowing) { _currentScene.AddGameObject(new FPSDisplay()); }
             }
             else
             {
@@ -188,7 +199,8 @@ namespace GameEngine
         // Begins the main game loop with the initial scene.
         public static void Run()
         {
-            Clock clock = new Clock();
+            _gameClock.Start();
+            double _previousMS = _gameClock.Elapsed.TotalMilliseconds;
 
             // Keep looping until the window closes.
             while (_window.IsOpen)
@@ -198,24 +210,24 @@ namespace GameEngine
                 {
                     _currentScene = _nextScene;
                     _nextScene = null;
-                    clock.Restart();
+                    _gameClock.Restart();
                 }
 
                 // This is the time since the last frame.
-                Time time = clock.Restart();
+                Time time = Time.FromMicroseconds((long)(1000 * (_gameClock.Elapsed.TotalMilliseconds - _previousMS)));
+                _previousMS = _gameClock.Elapsed.TotalMilliseconds;
 
                 // Handle fullscreen / force close key events
                 if (Keyboard.IsKeyPressed(_closeKey))
                 {
-                    _forceCloseTimer.Update(time);
-                    if (_forceCloseTimer.SurpassedTarget)
+                    if (_forceCloseTimer.IsExpired)
                     {
                         Game.RenderWindow.Close();
                     }
                 }
                 else
                 {
-                    _forceCloseTimer.Reset();
+                    _forceCloseTimer.Restart();
                 }
 
                 if (Keyboard.IsKeyPressed(_fullscreenKey))
@@ -234,6 +246,8 @@ namespace GameEngine
                 // Update the scene with the time since the last frame.
                 _currentScene.Update(time);
             }
+
+            _gameClock.Stop();
         }
     }
 }

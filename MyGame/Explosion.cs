@@ -47,7 +47,7 @@ namespace MyGame
         }
     }*/
 
-    class Explosion : GameObject
+    /*class Explosion : GameObject
     {
         private AnimatedSprite _animatedSprite;
         private readonly Sound _boom = new Sound();
@@ -69,5 +69,5 @@ namespace MyGame
         {
             Game.RenderWindow.Draw(_animatedSprite);
         }
-    }
+    }*/
 }

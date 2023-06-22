@@ -1,108 +1,63 @@
 using SFML.System;
 
 namespace GameEngine {
-    // This class represents a timer. Can be used as a member inside another class, or as a GameObject itself.
-    class Timer : GameObject {
+    // This class represents a simple timer. When the timer has existed for TimerLengthMS milliseconds, it is considered "expired".
+    struct Timer
+    {
+        // The time in milliseconds when this was created or last restarted.
+        public double StartMS { get; private set; }
 
-        // Current Time in ms.
-        public float Time { get; set; }
+        // This Timer is considered "expired" after it has existed for more than TimerLengthMS.
+        public double TimerLengthMS { get; set; }
 
-        // Time to surpass in ms.
-        public float TargetTime { get; set; }
+        // The Time since this was created or last restarted.
+        public Time TimeSinceStart { get => Time.FromMicroseconds((long)(1000 * (Game.CurrentTimeMS - StartMS))); }
 
-        // Automatically resets the timer as soon as it surpasses _targetTime if set to true.
-        private bool _autoReset;
+        // The Time remaining until this is considered "expired".
+        public Time TimeUntilExpired { get => Time.FromMicroseconds((long)(1000 * (StartMS + TimerLengthMS - Game.CurrentTimeMS))); }
 
-        // Determines if the timer should SubReset or Reset when it surpasses _targetTime.
-        private bool _autoSubReset;
+        // True if the time since this was started (or last restarted) is longer than TimerLengthMS.
+        public bool IsExpired { get => Game.CurrentTimeMS > StartMS + TimerLengthMS; }
 
-        // Initializes _targetTime based on the given time, and _autoreset set to false.
-        public Timer(float targetTime)
+        // Initializes StartMS to the current time and TimerLengthMS to the given parameter.
+        public Timer(double timerLengthMS)
         {
-            TargetTime = targetTime;
-            _autoReset = false;
-            Time = 0f;
+            StartMS = Game.CurrentTimeMS;
+            TimerLengthMS = timerLengthMS;
         }
 
-        // Initializes _targetTime and _autoSubReset based on the given parameters, with _autoReset set to true.
-        public Timer(float targetTime, bool autoSubReset)
+        // Sets StartMS to the current time.
+        public void Restart()
         {
-            TargetTime = targetTime;
-            _autoReset = true;
-            _autoSubReset = autoSubReset;
-            Time = 0f;   
+            StartMS = Game.CurrentTimeMS;
         }
 
-        // Counts _time up and subtract resets it if _autoReset is true. 
-        public override void Update(Time elapsed)
+        // Instead of setting StartMS to the current time, TimerLengthMS is added to StartMS. This is a more accurate way of tracking a repeated action.
+        public void AddRestart()
         {
-            // Using AsMicroseconds() / 1000f instead AsMilliseconds() improves timer consistency, especially at high framerates
-            Time += elapsed.AsMicroseconds() / 1000f;
-            if (_autoReset)
+            StartMS += TimerLengthMS;
+        }
+
+        // Calls Restart() and returns true if this Timer is "expired", returning false otherwise.
+        public bool RestartIfExpired()
+        {
+            if (IsExpired)
             {
-                if (_autoSubReset)
-                {
-                    SubResetIfSurpassed();
-                }
-                else
-                {
-                    ResetIfSurpassed();
-                }
-            }
-        }
-
-        // True if _time has surpassed _targetTime.
-        public bool SurpassedTarget { get => Time >= TargetTime; }
-
-        // Returns true and calls Reset if _time has surpassed _targetTime. Returns false otherwise.
-        public bool ResetIfSurpassed()
-        {
-            if (SurpassedTarget)
-            {
-                int extraResetActions = (int)((Time - TargetTime) / TargetTime);
-                Reset();
-
-                // Ensures ResetAction() is called the correct number of times regardless of the framerate.
-                while (extraResetActions > 0)
-                {
-                    ResetAction();
-                    extraResetActions--;
-                }
+                Restart();
                 return true;
             }
             return false;
         }
 
-        // Does the same thing as ResetIfSurpassed, except it calls SubReset and not Reset.
-        public bool SubResetIfSurpassed()
+        // Literally RestartIfExpired() but it calls AddRestart() instead of Restart().
+        public bool AddRestartIfExpired()
         {
-            if (SurpassedTarget)
-            {   
-                // Ensures ResetAction() is called the correct number of times regardless of the framerate.
-                while (SurpassedTarget)
-                {
-                    SubReset();
-                }
+            if (IsExpired)
+            {
+                AddRestart();
                 return true;
             }
             return false;
         }
-
-        // Resets the _time to 0 and calls ResetAction.
-        public void Reset()
-        {
-            Time = 0f;
-            ResetAction();
-        }
-
-        // Subracts the _targetTime instead of setting _time to 0. Generally improves consistency vs Reset.
-        public void SubReset()
-        {
-            Time -= TargetTime;
-            ResetAction();
-        }
-
-        // Override to make Timer do something on Reset (like spawn a meteor in the space invaders game for example).
-        public virtual void ResetAction() {}
     }
 }

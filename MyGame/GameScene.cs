@@ -13,13 +13,16 @@ namespace MyGame
 
             SpatialTree = new SpatialTree(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y), null);
             _currentCam = 0;
-            Cameras = new Camera[3];
+            Cameras = new Camera[2];
             Cameras[0] = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
-            Cameras[1] = new Camera(new FloatRect(-24, -300, Game.RenderWindow.Size.X * 8f, Game.RenderWindow.Size.Y * 8f));
-            Cameras[2] = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
+            //Cameras[1] = new Camera(new FloatRect(-24, -300, Game.RenderWindow.Size.X * 8f, Game.RenderWindow.Size.Y * 8f));
+            Cameras[1] = new Camera(new FloatRect(0, 0, Game.RenderWindow.Size.X, Game.RenderWindow.Size.Y));
 
-            Debug.InitializeDrawSpatialTree(SpatialTree, Color.Cyan, 1);
-            Debug.DrawSpatialTreeEnabled = true;
+            // Initialize and enable debug features.
+            //Debug.InitializeDrawSpatialTree(SpatialTree, Color.Cyan, 1, Cameras[0].View);
+            //Debug.DrawSpatialTreeEnabled = true;
+            Debug.InitializeFPSDisplay(Cameras[1].View);
+            Debug.FPSDisplayEnabled = true;
 
             Ship ship = new Ship();
             AddGameObject(ship);

@@ -42,7 +42,7 @@ namespace GameEngine
         private readonly float _ySplit;
 
         // The number of objects that can be stored in a node before the tree is split.
-        private const int NodeCapacity = 4;
+        private const int NodeCapacity = 3;
 
         // Constructs the spatial tree based on the given bounds.
         public SpatialTree(FloatRect bounds, SpatialTree parent)

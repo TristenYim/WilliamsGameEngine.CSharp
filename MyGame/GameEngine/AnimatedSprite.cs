@@ -297,6 +297,7 @@ namespace GameEngine
 
     // AnimatedSprite DOES NOT inherit from Sprite because there are some things Sprite can do that AnimatedSprite can't.
     // 
+    /*
     class AnimatedSprite : Transformable, Drawable
     {
         // This Sprite contains every frame of the animation. When the animation changes frame, the texture shown is simply shifted down.
@@ -386,4 +387,5 @@ namespace GameEngine
             _spriteSheet.Draw(target, states);
         }
     }
+    */
 }
