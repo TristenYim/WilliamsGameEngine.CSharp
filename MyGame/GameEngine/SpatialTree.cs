@@ -5,14 +5,15 @@ using System;
 
 namespace GameEngine
 {
-    // This is not a game object because its not meant to be inserted into the scene. It is a feature of the scene itself.
+    // This is the SpatialTree, which stores objects that have positions in a useful way which allows for efficient searching and collision detection.
+    // Note that this is not a GameObject because it is a feature of the Scene itself.
     class SpatialTree
     {
         // Represents all collidable objects that cannot be fully contained in any of the child nodes.
-        private readonly List<GameObject> _unsplittableObjects = new List<GameObject>();
+        private readonly List<SpatialTreeMember> _unsplittableObjects = new List<SpatialTreeMember>();
 
         // Represents all spatial objects that can be fully contained in a child node.
-        private readonly List<GameObject> _splittableObjects = new List<GameObject>();
+        private readonly List<SpatialTreeMember> _splittableObjects = new List<SpatialTreeMember>();
 
         // The children are numbered based on the standard mathematical quadrant system.
         // Do note that positive y is down in SFML, so that would put Child1 in the bottom right corner for example.
@@ -37,9 +38,9 @@ namespace GameEngine
             get => new FloatRect(LeftBound, RightBound, RightBound - LeftBound, TopBound - BottomBound);
         }
 
-        // The axes that mark the splits among children, used to insert an object into the correct child.
-        private readonly float _xSplit;
-        private readonly float _ySplit;
+        // The axes that mark the splits among children, defining which objects belong in which child.
+        // Note that the Y-axis is used to split objects in the X dimension, and vice versa.
+        private Vector2f _splitAxes;
 
         // The number of objects that can be stored in a node before the tree is split.
         private const int NodeCapacity = 3;
@@ -55,86 +56,132 @@ namespace GameEngine
             TopBound = bounds.Top;
             RightBound = LeftBound + bounds.Width;
             BottomBound = TopBound + bounds.Height;
-            _xSplit = LeftBound + bounds.Width / 2f;
-            _ySplit = TopBound + bounds.Height / 2f;
+            _splitAxes.Y = LeftBound + bounds.Width / 2f;
+            _splitAxes.X = TopBound + bounds.Height / 2f;
         }
 
         // Adds a spatial object into the right part of this tree and splits the tree if necessary.
-        public void Insert(GameObject gameObject) {
-            // There are separate methods for collidable objects and point-only objects to optimize each one separately
-            if (gameObject.IsBroadcastingCollionLayers || gameObject.IsCollisionCheckEnabled())
+        public void Insert(GameObject gameObject)
+        {
+            if (gameObject.Position == null)
             {
-                // Check if it is out of bounds here and insert it into _unspittableObjects if it is.
-                if (RectIsOutOfBounds(gameObject.GetCollisionRect()))
-                {
-                    gameObject.TreeNodePointer = this;
-                    _unsplittableObjects.Add(gameObject);
-                }
-                else
-                {
-                    Insert(gameObject, gameObject.GetCollisionRect().Left, gameObject.GetCollisionRect().Top, gameObject.GetCollisionRect().Left 
-                           + gameObject.GetCollisionRect().Width, gameObject.GetCollisionRect().Top + gameObject.GetCollisionRect().Height);
-                }
+                Console.WriteLine("WARNING: Tried to insert a GameObject without a position into the SpatialTree!");
             }
-            else if (gameObject.Position != null)
+            SpatialTreeMember gameObjectMember = new SpatialTreeMember(gameObject, _splitAxes);
+            if (gameObjectMember.IsPointOnly())
             {
-                // Check if it is out of bounds here and insert it into _unspittableObjects if it is.
-                if (PointIsOutOfBounds(gameObject.Position))
-                {
-                    gameObject.TreeNodePointer = this;
-                    _unsplittableObjects.Add(gameObject);
-                    return;
-                }
-                else
-                {
-                    Insert(gameObject, gameObject.Position.X, gameObject.Position.Y);
-                }
+                InsertPositionalOnly(gameObjectMember);
             }
             else
             {
-                Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
-                                  "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
+                InsertCollidabale(gameObjectMember);
             }
         }
         
-        // This helper method is for collidable objects.
-        private void Insert(GameObject cObject, float left, float top, float right, float bottom)
+        private void InsertCollidabale(SpatialTreeMember collidableMember)
         {
-            // Since the object has a collision box, we must check if its lying on the axes (which would make it unsplittable).
-            if (!(left < _xSplit ^ right >= _xSplit) && !(top < _ySplit ^ bottom >= _ySplit))
+            collidableMember.RecalculateQuadrants(_splitAxes);
+            if (!collidableMember.IsSplittable())
             {
-                cObject.TreeNodePointer = this;
-                _unsplittableObjects.Add(cObject);
+                _unsplittableObjects.Add(collidableMember);
             }
-            else if (!InsertAndSplitInLeaf(cObject))
+            else if (!IsLeaf)
             {
-                GetRightQuadrant(right >= _xSplit, bottom >= _ySplit).Insert(cObject, left, top, right, bottom);
+                InsertCollidableInRightQuadrant(collidableMember);
             }
-        }
-        
-        // This helper method is for point-only objects.
-        private void Insert(GameObject pObject, float x, float y)
-        {
-            if (!InsertAndSplitInLeaf(pObject))
-            {
-                GetRightQuadrant(x >= _xSplit, y >= _ySplit).Insert(pObject, x, y);
+            else
+            {   
+                if (_splittableObjects.Count == NodeCapacity)
+                {
+                    InsertCollidableInRightQuadrant(collidableMember);
+                    Split();
+                }
+                else
+                {
+                    _splittableObjects.Add(collidableMember);
+                }
             }
         }
 
-        // If this is a leaf, it adds a GameObject to _splittableObjects, splits if necessary, and returns true. Used in the Insert helper methods.
-        private bool InsertAndSplitInLeaf(GameObject gameObject)
+        private void InsertPositionalOnly(SpatialTreeMember positionalMember)
         {
-            if (IsLeaf)
+            positionalMember.RecalculateQuadrants(_splitAxes);
+            if (!IsLeaf)
             {
-                gameObject.TreeNodePointer = this;
-                _splittableObjects.Add(gameObject);
-                if (_splittableObjects.Count >= NodeCapacity)
+                InsertPositionalOnlyInRightQuadrant(positionalMember);
+            }
+            else
+            {
+                if (_splittableObjects.Count == NodeCapacity)
                 {
+                    InsertPositionalOnlyInRightQuadrant(positionalMember);
                     Split();
                 }
-                return true;
+                else
+                {
+                    _splittableObjects.Add(positionalMember);
+                }
             }
-            return false;
+        }
+
+        private void InsertInRightQuadrant(SpatialTreeMember treeMember)
+        {
+            if (treeMember.IsPointOnly())
+            {
+                InsertPositionalOnlyInRightQuadrant(treeMember);
+            }
+            else
+            {
+                InsertCollidableInRightQuadrant(treeMember);
+            }
+        }
+
+        private void InsertCollidableInRightQuadrant(SpatialTreeMember collidableMember)
+        {
+            if (collidableMember.IsInQ1)
+            {
+                Child1.InsertCollidabale(collidableMember);
+            }
+            else if (collidableMember.IsInQ2)
+            {
+                Child2.InsertCollidabale(collidableMember);
+            }
+            else if (collidableMember.IsInQ3)
+            {
+                Child3.InsertCollidabale(collidableMember);
+            }
+            else if (collidableMember.IsInQ4)
+            {
+                Child4.InsertCollidabale(collidableMember);
+            }
+            else
+            {
+                Console.WriteLine("WARNING: Failed to insert a collidable SpatialTreeMember into the SpatialTree!");
+            }
+        }
+
+        private void InsertPositionalOnlyInRightQuadrant(SpatialTreeMember positionalMember)
+        {
+            if (positionalMember.IsInQ1)
+            {
+                Child1.InsertCollidabale(positionalMember);
+            }
+            else if (positionalMember.IsInQ2)
+            {
+                Child2.InsertCollidabale(positionalMember);
+            }
+            else if (positionalMember.IsInQ3)
+            {
+                Child3.InsertCollidabale(positionalMember);
+            }
+            else if (positionalMember.IsInQ4)
+            {
+                Child4.InsertCollidabale(positionalMember);
+            }
+            else
+            {
+                Console.WriteLine("WARNING: Failed to insert a collidable SpatialTreeMember into the SpatialTree!");
+            }
         }
 
         // Constructs the children if they are null and moves all splittable objects into their correct quadrant
@@ -154,41 +201,9 @@ namespace GameEngine
             // Insert each object in _splittableObjects in the right quadrant then delete remove it from _splittableObjects.
             for (int i = _splittableObjects.Count - 1; i > 0; i--)
             {
-                // Since we already know this is a splittable object, we do this instead of calling Insert to save a few checks.
-                GetRightQuadrant(_splittableObjects[i].GetCollisionRect().Left >= _xSplit, _splittableObjects[i].GetCollisionRect().Top >= _ySplit)
-                                .Insert(_splittableObjects[i]);
-                _splittableObjects.RemoveAt(i);
+                InsertInRightQuadrant(_splittableObjects[i]);
             }
-        }
-
-        // This searches for an object in the tree based on a location.
-        public GameObject Search(Vector2f pos)
-        {
-            // First, check to see if this node contains it.
-            foreach(var gameObject in _unsplittableObjects)
-            {
-                if ((Vector2i)gameObject.Position == (Vector2i)pos)
-                {
-                    return gameObject;
-                }
-            }
-
-            // Only search splittable objects if this is a leaf.
-            if (IsLeaf)
-            {
-                foreach(var gameObject in _splittableObjects)
-                {
-                    if ((Vector2i)gameObject.Position == (Vector2i)pos)
-                    {
-                        return gameObject;
-                    }
-                }
-                // If it reaches this point, no further searching can be done and null is returned.
-                return null;
-            }
-
-            // Otherwise, continuesearching in the correct child;
-            return GetRightQuadrant(pos.X >= _xSplit, pos.Y >= _ySplit).Search(pos);
+            _splittableObjects.Clear();
         }
 
         // This deletes an object using its NodePointer if available, or by performing a search delete if not.
@@ -206,32 +221,6 @@ namespace GameEngine
                 // Merge if deleting from this turned it into an empty leaf.
                 pObject.TreeNodePointer._parent.Merge();
             }
-        }
-
-        // Searches for an instance of an object and deletes it.
-        private void SearchDelete(GameObject pObject)
-        {
-            // First try the easy part, checking if the object can be removed from the splittable or unsplittable objects.
-            if (_unsplittableObjects.Remove(pObject) || IsLeaf && _splittableObjects.Remove(pObject))
-            {
-                if (_parent != null && IsEmptyLeaf())
-                {
-                    // Merge if deleting from this turned it into an empty leaf.
-                    _parent.Merge();
-                }
-                return;
-            }
-
-            // Check if it's out of bounds - if it is, that means you tried to delete an object that is not in the tree.
-            if (PointIsOutOfBounds(pObject.Position))
-            {
-                Console.WriteLine("Warning: Tried to insert object that does not belong on tree" +
-                                  "in bounds between (" + LeftBound + ", " + TopBound + ") and (" + RightBound + ", " + BottomBound + ")");
-                return;
-            }
-
-            // Otherwise, try to delete from a child.
-            GetRightQuadrant(pObject.Position.X >= _xSplit, pObject.Position.Y >= _ySplit).SearchDelete(pObject);
         }
 
         // Use this when deleting to ensure that nodes whose children are empty leaves will merge.
@@ -356,10 +345,10 @@ namespace GameEngine
             List<GameObject> child4CheckList = new List<GameObject>();
             foreach (var cObject in checkList)
             {
-                bool posX = cObject.GetCollisionRect().Left + cObject.GetCollisionRect().Width >= _xSplit;
-                bool negX = cObject.GetCollisionRect().Left < _xSplit;
-                bool posY = cObject.GetCollisionRect().Top + cObject.GetCollisionRect().Height >= _ySplit;
-                bool negY = cObject.GetCollisionRect().Top < _ySplit;
+                bool posX = cObject.GetCollisionRect().Left + cObject.GetCollisionRect().Width >= _splitAxes.Y;
+                bool negX = cObject.GetCollisionRect().Left < _splitAxes.Y;
+                bool posY = cObject.GetCollisionRect().Top + cObject.GetCollisionRect().Height >= _splitAxes.X;
+                bool negY = cObject.GetCollisionRect().Top < _splitAxes.X;
                 if (posX && posY)
                 {
                     child1CheckList.Add(cObject);

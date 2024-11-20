@@ -16,17 +16,19 @@ namespace GameEngine
         // This is the GameObject's 2D position on the SpatialTree.
         public Vector2f Position { get; set; }
         
+        public SpatialTreeMember TreeMemberPointer { get; set; }
+
         // Points to the SpatialTree node this is in, if applicable.
-        public SpatialTree TreeNodePointer { get; set; }
+        //public SpatialTree TreeNodePointer { get; set; }
 
         // These sets define how this collides with other GameObjects. 
         // This can only collide with objects that are broadcasting its position on one of the the same "layers" (represented by a string) 
         //      as one one of the "layers" this is checking.  
         protected HashSet<string> _collisionBroadcastLayers = new HashSet<string>();
         protected HashSet<string> _collisionCheckLayers = new HashSet<string>();
-        public bool IsBroadcastingCollionLayers
+        public bool IsBroadcastingCollionLayers()
         {
-            get => _collisionBroadcastLayers.Count != 0;
+            return _collisionBroadcastLayers.Count != 0;
         }
 
         public bool IsCollisionCheckEnabled()
